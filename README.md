@@ -80,6 +80,14 @@ Fresh Supabase installations use `supabase/schema.sql`. Existing installations w
 
 The owner's previous open-ended weekly series was explicitly converted to the original plus 10 copies. `supabase/convert-existing-weekly.sql` records that one-time conversion; it is not required for new installations. Legacy series from an older client remain readable and can be converted explicitly in the form. New events do not create recurring series.
 
+## Home Screen updates
+
+Production builds publish a `version.json` release marker. Daymark checks it with a unique URL and `no-store` on startup, focus, return from the background, restored pages, and while open. An idle calendar loads a newly published release using a fresh URL. The URL includes a release marker to prevent refresh loops during CDN propagation.
+
+If a note or event is being edited, the app waits. **Update now** saves pending/failed note edits before refreshing; a failed save keeps the draft and pauses the update. Finish or cancel an event form first. Refreshing does not clear website data or the Supabase sign-in session. Offline or invalid version checks leave the current app usable.
+
+A Home Screen app already running a version from before this updater was added needs one fresh load to receive it. Fully close and reopen it, or open a fresh link to the deployed site. If an old shortcut still restores the old page, replace the shortcut with one made from the freshly loaded page. Do not clear Safari website data as an update step.
+
 ## Check the build
 
 ```bash

@@ -6,6 +6,8 @@ import { AuthScreen } from './components/AuthScreen'
 import { CalendarView } from './components/CalendarView'
 import { EventDialog } from './components/EventDialog'
 import { NotesView } from './components/NotesView'
+import { UpdateNotice } from './components/UpdateNotice'
+import { updateUrl, useAppUpdate } from './lib/app-updates'
 import { Sidebar } from './components/Sidebar'
 import { createCloudRepository, demoRepository } from './data/repository'
 import { occursOn } from './lib/events'
@@ -14,6 +16,7 @@ import type { CalendarEvent, EventInput, Note, NoteFilter, View } from './types'
 
 const formatDay = (date: Date) => format(date, 'yyyy-MM-dd')
 function App() {
+  const update = useAppUpdate()
   const [session, setSession] = useState<Session | null>(null)
   const [ready, setReady] = useState(!cloudEnabled)
   const [authError, setAuthError] = useState('')
@@ -33,12 +36,12 @@ function App() {
     return () => { active = false; subscription.unsubscribe() }
   }, [])
   if (!ready) return <div className="app-loading">Loading...</div>
-  if (cloudEnabled && !session) return <><AuthScreen/>{authError && <div role="alert">{authError}</div>}</>
+  if (cloudEnabled && !session) return <>{update && <UpdateNotice onUpdate={() => window.location.replace(updateUrl(update))}/>}<AuthScreen/>{authError && <div role="alert">{authError}</div>}</>
   // Remount all data, dialogs and save queues when the account changes.
-  return <Workspace key={session?.user.id ?? 'demo'} session={session}/>
+  return <Workspace key={session?.user.id ?? 'demo'} session={session} update={update}/>
 }
 
-function Workspace({ session }: { session: Session | null }) {
+function Workspace({ session, update }: { session: Session | null; update: string | null }) {
   const authReady = true
   const [activeView, setActiveView] = useState<View>('calendar')
   const [notes, setNotes] = useState<Note[]>([])
@@ -53,6 +56,8 @@ function Workspace({ session }: { session: Session | null }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [theme, setTheme] = useState<'dark'|'light'>(() => localStorage.getItem('daymark_theme') === 'light' ? 'light' : 'dark')
+  const [updating, setUpdating] = useState(false)
+  const dirtyNoteIds = useRef(new Set<string>())
   const pendingTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>())
   const pendingPatches = useRef(new Map<string, Partial<Pick<Note,'title'|'content'|'pinned'>>>())
   const inFlightSaves = useRef(new Map<string, Promise<void>>())
@@ -68,7 +73,7 @@ function Workspace({ session }: { session: Session | null }) {
 
   const refresh = useCallback(async () => {
     const [nextNotes, nextEvents] = await Promise.all([repository.getNotes(), repository.getEvents()])
-    setNotes(current => nextNotes.map(n => (pendingPatches.current.has(n.id) || inFlightSaves.current.has(n.id)) ? current.find(c => c.id === n.id) || n : n))
+    setNotes(current => nextNotes.map(n => (pendingPatches.current.has(n.id) || inFlightSaves.current.has(n.id) || dirtyNoteIds.current.has(n.id)) ? current.find(c => c.id === n.id) || n : n))
     setEvents(nextEvents)
   }, [repository])
 
@@ -101,7 +106,9 @@ function Workspace({ session }: { session: Session | null }) {
     const previous = inFlightSaves.current.get(id) ?? Promise.resolve()
     const next = previous.catch(() => {}).then(() => repository.saveNote(id, patch))
     inFlightSaves.current.set(id, next)
-    void next.catch(e => setError(`Could not save note: ${e instanceof Error ? e.message : String(e)}`)).finally(() => {
+    void next.then(() => {
+      if (inFlightSaves.current.get(id) === next && !pendingPatches.current.has(id)) dirtyNoteIds.current.delete(id)
+    }).catch(e => setError(`Could not save note: ${e instanceof Error ? e.message : String(e)}`)).finally(() => {
       if (inFlightSaves.current.get(id) === next) inFlightSaves.current.delete(id)
       setSaving(pendingTimers.current.size > 0 || inFlightSaves.current.size > 0)
     })
@@ -113,7 +120,9 @@ function Workspace({ session }: { session: Session | null }) {
   }
   function editNote(id: string, changes: Partial<Pick<Note,'title'|'content'|'pinned'>>) {
     setNotes(old => old.map(n => n.id === id ? { ...n, ...changes, updated_at: new Date().toISOString() } : n))
-    pendingPatches.current.set(id, { ...pendingPatches.current.get(id), ...changes })
+    dirtyNoteIds.current.add(id)
+    const current = notes.find(n => n.id === id)
+    pendingPatches.current.set(id, { ...(current ? { title: current.title, content: current.content, pinned: current.pinned } : {}), ...pendingPatches.current.get(id), ...changes })
     const timer = pendingTimers.current.get(id)
     if (timer) clearTimeout(timer)
     setSaving(true)
@@ -128,7 +137,7 @@ function Workspace({ session }: { session: Session | null }) {
     if (!window.confirm('Delete this note? This cannot be undone.')) return
     if (pendingTimers.current.get(id)) clearTimeout(pendingTimers.current.get(id))
     pendingTimers.current.delete(id); pendingPatches.current.delete(id)
-    try { await inFlightSaves.current.get(id)?.catch(() => {}); await repository.removeNote(id); setNotes(old => old.filter(n => n.id !== id)); setEvents(old => old.map(e => e.note_id === id ? { ...e, note_id: null } : e)); setSelectedNoteId(null) }
+    try { await inFlightSaves.current.get(id)?.catch(() => {}); await repository.removeNote(id); dirtyNoteIds.current.delete(id); setNotes(old => old.filter(n => n.id !== id)); setEvents(old => old.map(e => e.note_id === id ? { ...e, note_id: null } : e)); setSelectedNoteId(null) }
     catch (e) { setError(e instanceof Error ? e.message : String(e)) }
   }
   async function saveEvent(input: EventInput, id?: string, copyCount = 0) {
@@ -161,16 +170,49 @@ function Workspace({ session }: { session: Session | null }) {
     if (error) setError(error.message)
   }
 
+  async function applyUpdate() {
+    if (!update || dialog || updating) return
+    if (!navigator.onLine) { setError('Connect to the internet before updating. Your changes are still here.'); return }
+    setUpdating(true)
+    try {
+      for (const timer of pendingTimers.current.values()) clearTimeout(timer)
+      pendingTimers.current.clear()
+      await Promise.allSettled([...inFlightSaves.current.values()])
+      const patches = new Map(pendingPatches.current)
+      pendingPatches.current.clear()
+      // Include failed earlier saves; the latest in-memory note is the source of truth.
+      for (const id of dirtyNoteIds.current) {
+        const note = notes.find(n => n.id === id)
+        if (note) patches.set(id, { title: note.title, content: note.content, pinned: note.pinned })
+      }
+      await Promise.all([...patches].map(([id, patch]) => enqueueSave(id, patch)))
+      window.location.replace(updateUrl(update))
+    } catch {
+      setUpdating(false)
+      setError('Could not save your notes. The update is paused; your text is still here. Try again when connected.')
+    }
+  }
+
+  useEffect(() => {
+    if (update && navigator.onLine && !updating && !loading && !saving && !dialog && !settingsOpen && activeView === 'calendar'
+      && dirtyNoteIds.current.size === 0 && !inFlightSaves.current.size && !pendingPatches.current.size
+      && new URL(window.location.href).searchParams.get('daymark_release') !== update) {
+      window.location.replace(updateUrl(update))
+    }
+  }, [update, updating, loading, saving, dialog, settingsOpen, activeView])
+
+  if (updating) return <div className="app-loading" role="status">Saving changes and updating…</div>
   if (!authReady) return <div className="app-loading"><LoaderCircle className="spin" size={30}/><span>Opening Daymark...</span></div>
   if (cloudEnabled && !session) return <><AuthScreen/>{error && <div className="toast-error"><AlertCircle size={17}/>{error}<button onClick={() => setError('')} aria-label="Dismiss"><X size={16}/></button></div>}</>
   return <div className="app-shell">
+    {update && <UpdateNotice disabled={Boolean(dialog)} onUpdate={() => void applyUpdate()}/>}
     <Sidebar active={activeView} onNavigate={setActiveView} onOpenSettings={() => setSettingsOpen(true)}/>
     <main className="app-main">
       {loading ? <div className="content-loading"><LoaderCircle size={27} className="spin"/><span>Loading...</span></div> : activeView === 'notes' ? <NotesView notes={notes} selectedId={selectedNoteId} onSelect={setSelectedNoteId} onCreate={() => void createNote()} onEdit={editNote} onDelete={id => void deleteNote(id)} filter={noteFilter} onFilter={setNoteFilter} saving={saving}/> : <CalendarView month={month} onMonth={setMonth} selectedDate={selectedDate} onSelectDate={setSelectedDate} events={events} notes={notes} onCreate={() => setDialog({ date: formatDay(selectedDate), event: null })} onOpenEvent={e => setDialog({ date: e.event_date, event: e })} onOpenNote={openNote}/>}
     </main>
     {dialog && <EventDialog key={dialog.event?.id || `new-${dialog.date}`} event={dialog.event} date={dialog.date} notes={notes} onClose={() => setDialog(null)} onSave={saveEvent} onDelete={deleteEvent}/>}
     {settingsOpen && <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) setSettingsOpen(false) }}><section className="settings-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-title"><div className="settings-header"><div><h2 id="settings-title">Settings</h2></div><button className="icon-button" onClick={() => setSettingsOpen(false)} aria-label="Close settings"><X size={20}/></button></div><div className="settings-status"><div className="settings-status-icon">{cloudEnabled ? <Cloud size={24}/> : <CloudOff size={24}/>}</div><div><strong>{cloudEnabled ? 'Cloud sync enabled' : 'Local demo mode'}</strong><p>{cloudEnabled ? `Signed in as ${session?.user.email}. Your content is stored privately in Supabase.` : 'Notes and events are stored in this browser only. They will NOT sync between devices until you configure Supabase.'}</p></div></div><button className="settings-row" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}><Moon size={19}/><span>Appearance <small>{theme === 'dark' ? 'Dark mode' : 'Light mode'}</small></span><ArrowUpRight size={17}/></button><button className="settings-row" onClick={exportData}><Download size={19}/><span>Export your data <small>Download notes and events as JSON</small></span><ArrowUpRight size={17}/></button>{!cloudEnabled && <div className="settings-hint">To enable cross-device login, follow the <strong>README.md</strong>, set up Supabase, and redeploy. Demo data won't automatically migrate to your new account.</div>}{cloudEnabled && <button className="settings-row signout" onClick={() => void signOut()}><LogOut size={19}/><span>Sign out <small>End your session on this device</small></span><ArrowUpRight size={17}/></button>}</section></div>}
-    {error && <div className="toast-error" role="alert"><AlertCircle size={17}/>{error}<button onClick={() => setError('')} aria-label="Dismiss"><X size={16}/></button></div>}
+    {error && <div className={`toast-error ${update ? 'above-update' : ''}`} role="alert"><AlertCircle size={17}/>{error}<button onClick={() => setError('')} aria-label="Dismiss"><X size={16}/></button></div>}
   </div>
 }
 export default App

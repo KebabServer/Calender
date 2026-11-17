@@ -538,3 +538,11 @@ h1, h2, h3 { font-family: 'Manrope', 'DM Sans', sans-serif; letter-spacing: -.05
 }
 
 .repeat-summary { margin: -6px 0 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
+
+.update-notice { position: fixed; z-index: 150; bottom: 16px; left: 50%; transform: translateX(-50%); width: max-content; max-width: calc(100vw - 24px); display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--raised); color: var(--text); box-shadow: var(--shadow); font-size: 12px; }
+.update-notice > span { min-width: 0; }
+.update-notice .button { flex: none; min-height: 36px; padding: 8px 10px; }
+
+.update-notice.is-deferred { z-index: 90; }
+
+.toast-error.above-update { bottom: 100px; }
