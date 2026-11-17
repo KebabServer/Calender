@@ -463,11 +463,11 @@ h1, h2, h3 { font-family: 'Manrope', 'DM Sans', sans-serif; letter-spacing: -.05
   .calendar-page-header { align-items: center; }
   .calendar-page-header .button { padding: 10px 12px; }
   .calendar-page-header .button span { display: none; }
-  .calendar-day { height: 80px; padding: 5px 3px; align-items: center; gap: 3px; }
-  .calendar-day-events { display: flex; gap: 2px; }
-  .calendar-event-pill { flex: none; font-size: 7px; line-height: 10px; font-weight: 600; padding: 1px 2px; gap: 2px; border-radius: 2px; }
+  .calendar-day { height: 56px; padding: 3px 2px; align-items: center; gap: 2px; }
+  .calendar-day-events { display: flex; gap: 1px; }
+  .calendar-event-pill { flex: none; font-size: 7px; line-height: 8px; font-weight: 600; padding: 0 1px; gap: 2px; border-radius: 2px; }
   .calendar-event-pill .pill-dot { width: 3px; height: 3px; }
-  .calendar-more { font-size: 7px; line-height: 9px; padding-left: 1px; }
+  .calendar-more { flex: none; font-size: 7px; line-height: 8px; padding-left: 1px; }
   .calendar-controls { padding: 18px 13px; }
   .calendar-controls h2 { font-size: 17px; }
   .calendar-day-panel { display: block; }
@@ -514,15 +514,21 @@ h1, h2, h3 { font-family: 'Manrope', 'DM Sans', sans-serif; letter-spacing: -.05
   .workspace-brand { font-size: 15px; }
   .workspace-tabs { gap: 0; }
   .workspace-tabs button { padding: 10px; gap: 5px; font-size: 12px; }
-  .calendar-view { padding: 18px 12px; }
-  .calendar-day { height: 80px; }
-  .calendar-controls { min-height: 60px; padding: 10px; }
+  .calendar-view { padding: 12px; }
+  .calendar-day { height: 56px; }
+  .calendar-date-number { width: 20px; height: 18px; flex: none; font-size: 10px; border-radius: 5px; }
+  .calendar-controls { min-height: 48px; padding: 6px 10px; }
   .calendar-month-heading { gap: 7px; }
   .calendar-add-event { width: 30px; height: 32px; }
   .calendar-control-buttons { gap: 2px; margin-left: auto; }
   .calendar-control-buttons .icon-button { width: 30px; height: 32px; }
   .calendar-control-buttons .today-button { padding: 7px 8px; margin-right: 2px; }
-  .cal-week-label { height: 32px; }
+  .cal-week-label { height: 24px; font-size: 8px; }
+  .calendar-day-panel { padding: 14px; }
+  .day-panel-header { padding-bottom: 10px; }
+  .day-title { flex-direction: row; align-items: baseline; gap: 8px; }
+  .day-title strong { font-size: 16px; }
+  .day-agenda-heading { margin: 12px 0 10px; }
   .notes-layout { height: calc(100dvh - 56px); }
   .toast-error { bottom: 14px; }
 }
