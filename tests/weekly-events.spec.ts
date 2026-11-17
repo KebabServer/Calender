@@ -68,14 +68,15 @@ test.describe('independent event cloning on a phone', () => {
     await page.screenshot({ path: 'test-results/weekly-copies-mobile.png' })
   })
 
-  test('two timed labels and overflow count fit compact cells', async ({ page }) => {
+  test('three timed labels and overflow count fit compact cells', async ({ page }) => {
     await page.clock.setFixedTime(new Date('2026-03-22T10:00:00Z'))
     const event = { ...input, created_at: '', updated_at: '' }
-    await page.addInitScript(events => localStorage.setItem('daymark_demo_v1', JSON.stringify({ notes: [], events })), [{ ...event, id: 'one' }, { ...event, id: 'two' }, { ...event, id: 'three' }])
+    await page.addInitScript(events => localStorage.setItem('daymark_demo_v1', JSON.stringify({ notes: [], events })), [{ ...event, id: 'one' }, { ...event, id: 'two' }, { ...event, id: 'three' }, { ...event, id: 'four' }])
     await page.goto('./', { waitUntil: 'domcontentloaded' })
-    await expect(page.locator('.selected-day .calendar-event-time')).toHaveCount(2)
+    await expect(page.locator('.selected-day .calendar-event-time')).toHaveCount(3)
     await expect(page.locator('.selected-day .calendar-more')).toHaveText('+1 more')
     expect(await page.locator('.selected-day').evaluate(el => el.querySelector('.calendar-more')!.getBoundingClientRect().bottom <= el.getBoundingClientRect().bottom)).toBeTruthy()
+    await page.screenshot({ path: 'test-results/three-events-mobile.png' })
   })
 })
 

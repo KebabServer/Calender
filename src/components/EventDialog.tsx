@@ -10,7 +10,7 @@ type Props = {
   onDelete: (id: string) => Promise<void>
 }
 const durations = [15, 30, 45, 60, 90, 120, 180, 240]
-const colors = [{ id: 'purple', label: 'Lavender' }, { id: 'mint', label: 'Mint' }, { id: 'peach', label: 'Peach' }, { id: 'blue', label: 'Blue' }]
+const colors = [{ id: 'purple', label: 'Lavender' }, { id: 'mint', label: 'Mint' }, { id: 'peach', label: 'Red' }, { id: 'blue', label: 'Blue' }]
 export function EventDialog({ event, date, notes, onClose, onSave, onDelete }: Props) {
   const [title, setTitle] = useState(event?.title ?? '')
   const [description, setDescription] = useState(event?.description ?? '')
