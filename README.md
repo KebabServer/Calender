@@ -8,10 +8,11 @@ A calm, responsive personal notes-and-calendar app. Made with React, TypeScript,
 - 📅 Monthly calendar with create/edit/delete events, priorities, all-day events, and start times and durations in calendar cells
 - Clone events 1–10 weeks ahead as independent events, preserving times, colors, descriptions and linked notes
 - 🔗 Link notes to events and jump between them
-- Calendar opens by default, with direct navigation to notes and settings
+- Calendar opens by default, with direct navigation to notes, to-do list and settings
+- Add, edit, complete, reopen and delete private tasks; filter Open, All or Done
 - 🌓 Light and dark themes; mobile navigation and responsive layouts
 - ☁️ Optional email/password accounts, Supabase-backed storage and cross-device sync
-- 💾 Download a JSON backup of your data
+- 💾 Download a JSON backup of notes, events and tasks
 - 🚀 GitHub Pages deployment workflow included
 
 **Not yet included:** push notifications, single-occurrence exceptions, multi-day events, simultaneous editing conflict resolution, server-side account recovery UI, importing JSON backups, full offline cloud editing, or PWA installation. Events represent a single date and wall-clock time; no timezone conversion is performed.
@@ -63,6 +64,12 @@ The workflow sets Vite's `VITE_BASE_PATH` to `/<repo-name>/` automatically for s
 **Notes:** GitHub Pages handles static builds only; Supabase provides authentication, storage and sync. Open `design-preview.html` for a non-interactive, static visual mockup (the real app is the React project).
 
 The app uses no client-side routes, so it works without server redirects. Supabase Realtime updates other open sessions; devices that reconnect fetch current records on page reload. For two devices editing the *same* note simultaneously, the last saved text wins. Add conflict resolution before relying on collaborative editing.
+
+## To-do list
+
+Open **To-do**, type a task and tap **+** (or press Enter). Use the checkbox to complete or reopen a task, the pencil to edit it, or the bin to delete it after confirmation. Tasks sync to your account through Supabase, and each user can access only their own tasks. Drafts remain when switching tabs; save or cancel a draft before updating or signing out. Tasks are included in JSON backups.
+
+Fresh Supabase installations use `supabase/schema.sql`. Existing projects can run `supabase/tasks.sql` once; the connected production project is already upgraded.
 
 ## Compact event editor
 

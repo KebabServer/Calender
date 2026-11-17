@@ -1,9 +1,13 @@
 import { format, addDays, subDays, addHours } from 'date-fns'
-import type { CalendarEvent, EventInput, Note } from '../types'
+import type { CalendarEvent, EventInput, Note, Task } from '../types'
 import { weeklyCopies } from '../lib/events'
 import { supabase } from '../lib/supabase'
 
 export interface Repository {
+  getTasks(): Promise<Task[]>
+  createTask(title: string): Promise<Task>
+  saveTask(id: string, updates: Partial<Pick<Task, 'title' | 'completed'>>): Promise<Task>
+  removeTask(id: string): Promise<void>
   getNotes(): Promise<Note[]>
   getEvents(): Promise<CalendarEvent[]>
   createNote(): Promise<Note>
@@ -15,12 +19,13 @@ export interface Repository {
   removeEvent(id: string): Promise<void>
 }
 
-function demoSeed(): { notes: Note[]; events: CalendarEvent[] } {
+function demoSeed(): { notes: Note[]; events: CalendarEvent[]; tasks: Task[] } {
   const now = new Date()
   const stamp = now.toISOString()
   const d = (offset: number) => format(addDays(now, offset), 'yyyy-MM-dd')
   const time = (hours: number) => format(addHours(now, hours), 'HH:mm')
   return {
+    tasks: [],
     notes: [
       { id: 'demo-note-1', title: 'A little space to think', content: '## Welcome to Daymark ✨\n\nYour thoughts deserve a calm place to land. Capture ideas, keep plans close, and make space for the important things.\n\n- [x] Explore your notes\n- [ ] Add a new note\n- [ ] Plan something on your calendar\n\n**Tip:** Your demo notes live in this browser. Connect Supabase when you are ready to sync devices.', pinned: true, created_at: stamp, updated_at: stamp },
       { id: 'demo-note-2', title: 'Ideas worth keeping', content: '## Small sparks\n\n- A weekend photo walk\n- Build a morning reading habit\n- Try a new recipe on Sunday\n\n> Good ideas grow when you write them down.', pinned: false, created_at: subDays(now, 2).toISOString(), updated_at: subDays(now, 1).toISOString() },
@@ -38,7 +43,10 @@ const DEMO_KEY = 'daymark_demo_v1'
 function readDemo() {
   try {
     const raw = localStorage.getItem(DEMO_KEY)
-    if (raw) return JSON.parse(raw) as ReturnType<typeof demoSeed>
+    if (raw) {
+      const value = JSON.parse(raw) as ReturnType<typeof demoSeed>
+      return { ...value, tasks: value.tasks ?? [] }
+    }
   } catch { /* If storage is unavailable, seed fresh data */ }
   const value = demoSeed()
   writeDemo(value)
@@ -49,6 +57,24 @@ function writeDemo(value: ReturnType<typeof demoSeed>) {
 }
 
 export const demoRepository: Repository = {
+  async getTasks() { return readDemo().tasks },
+  async createTask(title) {
+    const state = readDemo()
+    const now = new Date().toISOString()
+    const task: Task = { id: crypto.randomUUID(), title, completed: false, created_at: now, updated_at: now }
+    state.tasks.unshift(task); writeDemo(state); return task
+  },
+  async saveTask(id, updates) {
+    const state = readDemo()
+    const current = state.tasks.find(t => t.id === id)
+    if (!current) throw new Error('Task not found')
+    const saved = { ...current, ...updates, updated_at: new Date().toISOString() }
+    state.tasks = state.tasks.map(t => t.id === id ? saved : t)
+    writeDemo(state); return saved
+  },
+  async removeTask(id) {
+    const state = readDemo(); state.tasks = state.tasks.filter(t => t.id !== id); writeDemo(state)
+  },
   async getNotes() { return readDemo().notes },
   async getEvents() { return readDemo().events },
   async createNote() {
@@ -110,6 +136,22 @@ export function createCloudRepository(userId: string): Repository {
   if (!supabase) throw new Error('Cloud is not configured')
   const client = supabase
   return {
+    async getTasks() {
+      const { data, error } = await client.from('tasks').select('id,title,completed,created_at,updated_at').eq('user_id', userId).order('created_at', { ascending: false })
+      assertNoError(error); return (data || []) as Task[]
+    },
+    async createTask(title) {
+      const { data, error } = await client.from('tasks').insert({ user_id: userId, title, completed: false }).select('id,title,completed,created_at,updated_at').single()
+      assertNoError(error); return data as Task
+    },
+    async saveTask(id, updates) {
+      const { data, error } = await client.from('tasks').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id).eq('user_id', userId).select('id,title,completed,created_at,updated_at').single()
+      assertNoError(error); return data as Task
+    },
+    async removeTask(id) {
+      const { error } = await client.from('tasks').delete().eq('id', id).eq('user_id', userId)
+      assertNoError(error)
+    },
     async getNotes() {
       const { data, error } = await client.from('notes').select('id,title,content,pinned,created_at,updated_at').eq('user_id', userId).order('updated_at', { ascending: false })
       assertNoError(error)

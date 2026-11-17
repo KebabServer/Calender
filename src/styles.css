@@ -586,3 +586,22 @@ h1, h2, h3 { font-family: 'Manrope', 'DM Sans', sans-serif; letter-spacing: -.05
   .event-dialog .select-wrap { min-width: 0; gap: 6px; padding-left: 8px; }
   .event-dialog .select-wrap select { width: 0; flex: 1; padding-left: 0; }
 }
+
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.tasks-view { width: 100%; max-width: 720px; margin: 0 auto; padding: 24px; }
+.tasks-heading { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 16px; }
+.tasks-heading h1 { margin: 0; font-size: 24px; }
+.tasks-heading > span { color: var(--muted); font-size: 12px; }
+.task-compose { display: flex; gap: 8px; align-items: center; margin-bottom: 14px; }
+.task-compose input { width: 0; flex: 1; min-width: 0; border: 1px solid var(--border); border-radius: 8px; background: var(--input); color: var(--text); padding: 10px 12px; font-size: 16px; }
+.task-filters { display: flex; gap: 6px; margin-bottom: 12px; }
+.task-filters button { min-height: 32px; padding: 6px 12px; border-radius: 7px; color: var(--muted); font-size: 12px; }
+.task-filters button[aria-pressed="true"] { background: var(--accent-trans); color: var(--text); }
+.task-list { list-style: none; padding: 0; margin: 0; }
+.task-row { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 8px 0; border-bottom: 1px solid var(--border-soft); }
+.task-row > input { width: 18px; height: 18px; margin: 0; flex: none; accent-color: var(--accent); }
+.task-title { flex: 1; min-width: 0; overflow-wrap: anywhere; line-height: 1.5; }
+.task-completed .task-title { color: var(--muted); text-decoration: line-through; }
+.task-row .icon-button { width: 30px; height: 34px; }
+.tasks-empty { padding: 24px 0; color: var(--muted); font-size: 13px; }
+@media (max-width: 700px) { .tasks-view { padding: 18px 12px; } }

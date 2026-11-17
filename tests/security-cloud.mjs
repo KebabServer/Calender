@@ -19,6 +19,7 @@ try {
  await page.route('https://tktgencmwtanxjfkiadc.supabase.co/**',async route => {
   const u = new URL(route.request().url())
   const a = route.request().headers().authorization?.includes(token('account-a'))
+  if(u.pathname.includes('/rest/v1/tasks')) return route.fulfill({json:[]})
   if(u.pathname.includes('/rest/v1/notes')) {
    if(hold && a) { requested(); await released }
    return route.fulfill({json:[{id:a?'note-a':'note-b',title:a?'PRIVATE ACCOUNT A':'ACCOUNT B',content:'content',pinned:false,created_at:new Date().toISOString(),updated_at:new Date().toISOString()}]})

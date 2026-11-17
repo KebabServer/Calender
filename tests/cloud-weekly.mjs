@@ -16,6 +16,7 @@ try {
  let posted=false,updated=false,removed=false
  await page.route('https://tktgencmwtanxjfkiadc.supabase.co/**',async route=>{
   const req=route.request(), url=new URL(req.url())
+  if(url.pathname.includes('/rest/v1/tasks')) return route.fulfill({json:[]})
   if(url.pathname.includes('/rest/v1/notes')) return route.fulfill({json:[]})
   if(url.pathname.endsWith('/rpc/save_event_with_copies')) {
    const {p_input:input,p_copy_count:count,p_event_id:eventId}=req.postDataJSON()

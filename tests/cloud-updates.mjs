@@ -17,6 +17,7 @@ try {
  await page.route('**/version.json*',r=>latest?r.fulfill({json:{version:'future-cloud-update'}}):r.fulfill({status:404,body:''}))
  await page.route('https://tktgencmwtanxjfkiadc.supabase.co/**',async r=>{
   const url=new URL(r.request().url())
+  if(url.pathname.includes('/rest/v1/tasks')) return r.fulfill({json:[]})
   if(url.pathname.includes('/rest/v1/notes')) {
    if(r.request().method()==='PATCH') {
     attempts++
