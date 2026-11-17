@@ -55,3 +55,8 @@ begin
     alter publication supabase_realtime add table public.events;
   end if;
 end $$;
+
+-- Expose only authenticated CRUD; row policies enforce ownership.
+revoke all on public.notes, public.events from anon, authenticated;
+grant select, insert, update, delete on public.notes, public.events to authenticated;
+create index if not exists events_note_id_idx on public.events(note_id);

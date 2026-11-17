@@ -5,7 +5,6 @@ import { AlertCircle, ArrowUpRight, Cloud, CloudOff, Download, LoaderCircle, Log
 import { AuthScreen } from './components/AuthScreen'
 import { CalendarView } from './components/CalendarView'
 import { EventDialog } from './components/EventDialog'
-import { HomeView } from './components/HomeView'
 import { NotesView } from './components/NotesView'
 import { Sidebar } from './components/Sidebar'
 import { createCloudRepository, demoRepository } from './data/repository'
@@ -14,9 +13,33 @@ import type { CalendarEvent, EventInput, Note, NoteFilter, View } from './types'
 
 const formatDay = (date: Date) => format(date, 'yyyy-MM-dd')
 function App() {
-  const [authReady, setAuthReady] = useState(!cloudEnabled)
   const [session, setSession] = useState<Session | null>(null)
-  const [activeView, setActiveView] = useState<View>('home')
+  const [ready, setReady] = useState(!cloudEnabled)
+  const [authError, setAuthError] = useState('')
+  useEffect(() => {
+    if (!supabase) return
+    let active = true
+    let authEventReceived = false
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, next) => {
+      authEventReceived = true
+      if (active) { setSession(next); setReady(true) }
+    })
+    void supabase.auth.getSession().then(({ data, error }) => {
+      if (!active || authEventReceived) return
+      if (error) setAuthError(error.message)
+      setSession(data.session); setReady(true)
+    }).catch(() => { if (active) { setAuthError('Could not restore your session. Please sign in again.'); setReady(true) } })
+    return () => { active = false; subscription.unsubscribe() }
+  }, [])
+  if (!ready) return <div className="app-loading">Loading...</div>
+  if (cloudEnabled && !session) return <><AuthScreen/>{authError && <div role="alert">{authError}</div>}</>
+  // Remount all data, dialogs and save queues when the account changes.
+  return <Workspace key={session?.user.id ?? 'demo'} session={session}/>
+}
+
+function Workspace({ session }: { session: Session | null }) {
+  const authReady = true
+  const [activeView, setActiveView] = useState<View>('calendar')
   const [notes, setNotes] = useState<Note[]>([])
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [selectedNoteId, setSelectedNoteId] = useState<string|null>(null)
@@ -36,12 +59,10 @@ function App() {
   const repository = useMemo(() => activeUserId && supabase ? createCloudRepository(activeUserId) : demoRepository, [activeUserId])
 
   useEffect(() => { document.documentElement.dataset.theme = theme; localStorage.setItem('daymark_theme', theme) }, [theme])
-  useEffect(() => {
-    if (!supabase) return
-    const client = supabase
-    client.auth.getSession().then(({ data, error }) => { if (error) setError(error.message); setSession(data.session); setAuthReady(true) }).catch(e => { setError(String(e)); setAuthReady(true) })
-    const { data: { subscription } } = client.auth.onAuthStateChange((_event, next) => { setSession(next); setAuthReady(true) })
-    return () => subscription.unsubscribe()
+  useEffect(() => () => {
+    for (const timer of pendingTimers.current.values()) clearTimeout(timer)
+    pendingTimers.current.clear()
+    pendingPatches.current.clear()
   }, [])
 
   const refresh = useCallback(async () => {
@@ -115,7 +136,6 @@ function App() {
     setMonth(new Date(`${input.event_date}T12:00:00`)); setSelectedDate(new Date(`${input.event_date}T12:00:00`))
   }
   async function deleteEvent(id: string) { await repository.removeEvent(id); setEvents(old => old.filter(e => e.id !== id)) }
-  function openDate(date: Date) { setActiveView('calendar'); setSelectedDate(date); setMonth(date) }
   function openNote(id: string) { setActiveView('notes'); setSelectedNoteId(id); setNoteFilter('all') }
   function exportData() {
     const data = JSON.stringify({ exported_at: new Date().toISOString(), notes, events }, null, 2)
@@ -138,13 +158,12 @@ function App() {
   if (!authReady) return <div className="app-loading"><LoaderCircle className="spin" size={30}/><span>Opening Daymark...</span></div>
   if (cloudEnabled && !session) return <><AuthScreen/>{error && <div className="toast-error"><AlertCircle size={17}/>{error}<button onClick={() => setError('')} aria-label="Dismiss"><X size={16}/></button></div>}</>
   return <div className="app-shell">
-    <Sidebar active={activeView} onNavigate={setActiveView} onNewNote={() => void createNote()} onNewEvent={() => setDialog({ date: formatDay(selectedDate), event: null })} cloud={cloudEnabled} email={session?.user.email} theme={theme} onTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')} onOpenSettings={() => setSettingsOpen(true)}/>
+    <Sidebar active={activeView} onNavigate={setActiveView} onOpenSettings={() => setSettingsOpen(true)}/>
     <main className="app-main">
-      <div className="mobile-topbar"><button className="mobile-brand" onClick={() => setActiveView('home')}><span className="brand-mark mini"><span className="brand-lines">◧</span></span> daymark<span className="brand-dot">.</span></button><button className="mobile-cloud" onClick={() => setSettingsOpen(true)} aria-label="App settings">{cloudEnabled ? <Cloud size={19}/> : <CloudOff size={19}/>}</button></div>
-      {loading ? <div className="content-loading"><LoaderCircle size={27} className="spin"/><span>Gathering your space...</span></div> : activeView === 'home' ? <HomeView notes={notes} events={events} onNavigate={setActiveView} onNewNote={() => void createNote()} onNewEvent={() => setDialog({ date: formatDay(selectedDate), event: null })} onOpenNote={openNote} onOpenDate={openDate}/> : activeView === 'notes' ? <NotesView notes={notes} selectedId={selectedNoteId} onSelect={setSelectedNoteId} onCreate={() => void createNote()} onEdit={editNote} onDelete={id => void deleteNote(id)} filter={noteFilter} onFilter={setNoteFilter} saving={saving}/> : <CalendarView month={month} onMonth={setMonth} selectedDate={selectedDate} onSelectDate={setSelectedDate} events={events} notes={notes} onCreate={() => setDialog({ date: formatDay(selectedDate), event: null })} onOpenEvent={e => setDialog({ date: e.event_date, event: e })} onOpenNote={openNote}/>} 
+      {loading ? <div className="content-loading"><LoaderCircle size={27} className="spin"/><span>Loading...</span></div> : activeView === 'notes' ? <NotesView notes={notes} selectedId={selectedNoteId} onSelect={setSelectedNoteId} onCreate={() => void createNote()} onEdit={editNote} onDelete={id => void deleteNote(id)} filter={noteFilter} onFilter={setNoteFilter} saving={saving}/> : <CalendarView month={month} onMonth={setMonth} selectedDate={selectedDate} onSelectDate={setSelectedDate} events={events} notes={notes} onCreate={() => setDialog({ date: formatDay(selectedDate), event: null })} onOpenEvent={e => setDialog({ date: e.event_date, event: e })} onOpenNote={openNote}/>}
     </main>
-    {dialog && <EventDialog key={dialog.event?.id || `new-${dialog.date}`} event={dialog.event} date={dialog.date} notes={notes} onClose={() => setDialog(null)} onSave={saveEvent} onDelete={deleteEvent}/>} 
-    {settingsOpen && <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) setSettingsOpen(false) }}><section className="settings-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-title"><div className="settings-header"><div><span className="panel-kicker">PERSONAL PREFERENCES</span><h2 id="settings-title">Your workspace</h2></div><button className="icon-button" onClick={() => setSettingsOpen(false)} aria-label="Close settings"><X size={20}/></button></div><div className="settings-status"><div className="settings-status-icon">{cloudEnabled ? <Cloud size={24}/> : <CloudOff size={24}/>}</div><div><strong>{cloudEnabled ? 'Cloud sync enabled' : 'Local demo mode'}</strong><p>{cloudEnabled ? `Signed in as ${session?.user.email}. Your content is stored privately in Supabase.` : 'Notes and events are stored in this browser only. They will NOT sync between devices until you configure Supabase.'}</p></div></div><button className="settings-row" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}><Moon size={19}/><span>Appearance <small>{theme === 'dark' ? 'Dark mode' : 'Light mode'}</small></span><ArrowUpRight size={17}/></button><button className="settings-row" onClick={exportData}><Download size={19}/><span>Export your data <small>Download notes and events as JSON</small></span><ArrowUpRight size={17}/></button>{!cloudEnabled && <div className="settings-hint">To enable cross-device login, follow the <strong>README.md</strong>, set up Supabase, and redeploy. Demo data won't automatically migrate to your new account.</div>}{cloudEnabled && <button className="settings-row signout" onClick={() => void signOut()}><LogOut size={19}/><span>Sign out <small>End your session on this device</small></span><ArrowUpRight size={17}/></button>}</section></div>}
+    {dialog && <EventDialog key={dialog.event?.id || `new-${dialog.date}`} event={dialog.event} date={dialog.date} notes={notes} onClose={() => setDialog(null)} onSave={saveEvent} onDelete={deleteEvent}/>}
+    {settingsOpen && <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) setSettingsOpen(false) }}><section className="settings-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-title"><div className="settings-header"><div><h2 id="settings-title">Settings</h2></div><button className="icon-button" onClick={() => setSettingsOpen(false)} aria-label="Close settings"><X size={20}/></button></div><div className="settings-status"><div className="settings-status-icon">{cloudEnabled ? <Cloud size={24}/> : <CloudOff size={24}/>}</div><div><strong>{cloudEnabled ? 'Cloud sync enabled' : 'Local demo mode'}</strong><p>{cloudEnabled ? `Signed in as ${session?.user.email}. Your content is stored privately in Supabase.` : 'Notes and events are stored in this browser only. They will NOT sync between devices until you configure Supabase.'}</p></div></div><button className="settings-row" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}><Moon size={19}/><span>Appearance <small>{theme === 'dark' ? 'Dark mode' : 'Light mode'}</small></span><ArrowUpRight size={17}/></button><button className="settings-row" onClick={exportData}><Download size={19}/><span>Export your data <small>Download notes and events as JSON</small></span><ArrowUpRight size={17}/></button>{!cloudEnabled && <div className="settings-hint">To enable cross-device login, follow the <strong>README.md</strong>, set up Supabase, and redeploy. Demo data won't automatically migrate to your new account.</div>}{cloudEnabled && <button className="settings-row signout" onClick={() => void signOut()}><LogOut size={19}/><span>Sign out <small>End your session on this device</small></span><ArrowUpRight size={17}/></button>}</section></div>}
     {error && <div className="toast-error" role="alert"><AlertCircle size={17}/>{error}<button onClick={() => setError('')} aria-label="Dismiss"><X size={16}/></button></div>}
   </div>
 }

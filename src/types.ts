@@ -21,6 +21,6 @@ export type CalendarEvent = {
   updated_at: string
 }
 
-export type View = 'home' | 'notes' | 'calendar'
+export type View = 'notes' | 'calendar'
 export type NoteFilter = 'all' | 'pinned'
 export type EventInput = Omit<CalendarEvent, 'id' | 'created_at' | 'updated_at'>

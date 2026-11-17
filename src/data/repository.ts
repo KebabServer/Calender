@@ -97,12 +97,12 @@ export function createCloudRepository(userId: string): Repository {
   const client = supabase
   return {
     async getNotes() {
-      const { data, error } = await client.from('notes').select('id,title,content,pinned,created_at,updated_at').order('updated_at', { ascending: false })
+      const { data, error } = await client.from('notes').select('id,title,content,pinned,created_at,updated_at').eq('user_id', userId).order('updated_at', { ascending: false })
       assertNoError(error)
       return (data || []) as Note[]
     },
     async getEvents() {
-      const { data, error } = await client.from('events').select('id,title,description,event_date,start_time,end_time,all_day,color,note_id,created_at,updated_at').order('event_date')
+      const { data, error } = await client.from('events').select('id,title,description,event_date,start_time,end_time,all_day,color,note_id,created_at,updated_at').eq('user_id', userId).order('event_date')
       assertNoError(error)
       return (data || []) as CalendarEvent[]
     },
@@ -112,11 +112,11 @@ export function createCloudRepository(userId: string): Repository {
       return data as Note
     },
     async saveNote(id, updates) {
-      const { error } = await client.from('notes').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id)
+      const { error } = await client.from('notes').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id).eq('user_id', userId)
       assertNoError(error)
     },
     async removeNote(id) {
-      const { error } = await client.from('notes').delete().eq('id', id)
+      const { error } = await client.from('notes').delete().eq('id', id).eq('user_id', userId)
       assertNoError(error)
     },
     async createEvent(input) {
@@ -125,11 +125,11 @@ export function createCloudRepository(userId: string): Repository {
       return data as CalendarEvent
     },
     async saveEvent(id, updates) {
-      const { error } = await client.from('events').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id)
+      const { error } = await client.from('events').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id).eq('user_id', userId)
       assertNoError(error)
     },
     async removeEvent(id) {
-      const { error } = await client.from('events').delete().eq('id', id)
+      const { error } = await client.from('events').delete().eq('id', id).eq('user_id', userId)
       assertNoError(error)
     },
   }

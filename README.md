@@ -7,7 +7,7 @@ A calm, responsive personal notes-and-calendar app. Made with React, TypeScript,
 - 📒 Create, edit, search, pin, delete, and preview Markdown notes; autosave while typing
 - 📅 Monthly calendar with create/edit/delete events, colors, all-day and time slots
 - 🔗 Link notes to events and jump between them
-- 🏠 Today dashboard, upcoming events, and recently edited notes
+- Calendar opens by default, with direct navigation to notes and settings
 - 🌓 Light and dark themes; mobile navigation and responsive layouts
 - ☁️ Optional email/password accounts, Supabase-backed storage and cross-device sync
 - 💾 Download a JSON backup of your data
@@ -76,7 +76,7 @@ npm run preview
 ```text
 src/
   App.tsx                 # Application state, autosave, authentication
-  components/             # Dashboard, notes editor, calendar, forms
+  components/             # Notes editor, calendar, forms
   data/repository.ts      # Browser demo or Supabase storage adapter
   lib/supabase.ts         # Supabase client configuration
   types.ts                # Shared models
@@ -95,11 +95,29 @@ supabase/schema.sql       # Private cloud database and RLS
 
 ## Manual smoke-test checklist
 
-1. Run `npm run dev` without an `.env.local` and confirm the dashboard loads demo content.
+1. Run `npm run dev` without an `.env.local` and confirm the calendar loads demo content.
 2. Create a note, write some Markdown, pin it, refresh the page, and confirm it persists.
 3. Create an event, choose a color, link a note, then edit and delete the event.
 4. Check layout and calendar navigation on a narrow phone-sized browser window.
 5. After setting up Supabase, sign in to the same account on two devices. Create a note on one and confirm it appears on the other; reload to verify persistence.
 6. Confirm that a different Supabase account cannot read your notes or events.
 
-The source was syntax-checked in the artifact environment, but the full `npm install` / production build and live Supabase tests must be run in an environment with npm registry access.
+Development verification now includes dependency installation, TypeScript checks, and a production build with `VITE_BASE_PATH=/Calender/`. Browser smoke tests cover note creation, autosave persistence, Markdown preview, month navigation, event editing, and linked notes at 320, 390, 768, and 1440 pixels. Live Supabase authentication and cross-account RLS still require a configured Supabase project.
+
+Run the browser checks against the production output:
+
+```bash
+VITE_SUPABASE_URL= VITE_SUPABASE_PUBLISHABLE_KEY= VITE_SUPABASE_ANON_KEY= VITE_BASE_PATH=/Calender/ npm run build
+npx playwright install chromium
+npm run test:e2e
+```
+
+To use an installed Chromium instead, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to its executable path.
+
+### Pages configuration verification (2026-11-17)
+
+The workflow uses Node 22, `npm ci` with the committed lockfile, TypeScript checks, the `dist` artifact, and the required Pages/OIDC permissions. Its generated base path is `/Calender/` for this repository.
+
+Pages is configured to use GitHub Actions. The deployment workflow was rerun successfully after switching away from the legacy source. Keep **Settings → Pages → Build and deployment → Source** set to **GitHub Actions**.
+
+The previous workflow also had empty Supabase URL and publishable-key variables. Set the two public Actions variables described above to enable production cloud login; otherwise the build runs in demo mode. Never supply a service-role key.
