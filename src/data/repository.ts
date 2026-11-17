@@ -1,5 +1,6 @@
 import { format, addDays, subDays, addHours } from 'date-fns'
 import type { CalendarEvent, EventInput, Note } from '../types'
+import { weeklyCopies } from '../lib/events'
 import { supabase } from '../lib/supabase'
 
 export interface Repository {
@@ -10,6 +11,7 @@ export interface Repository {
   removeNote(id: string): Promise<void>
   createEvent(input: EventInput): Promise<CalendarEvent>
   saveEvent(id: string, updates: EventInput): Promise<void>
+  saveEventWithCopies(input: EventInput, id: string | undefined, count: number): Promise<CalendarEvent[]>
   removeEvent(id: string): Promise<void>
 }
 
@@ -76,6 +78,18 @@ export const demoRepository: Repository = {
     writeDemo(state)
     return event
   },
+  async saveEventWithCopies(input, id, count) {
+    const copies = weeklyCopies(input, count)
+    const state = readDemo()
+    const original = id ? state.events.find(e => e.id === id) : undefined
+    if (id && !original) throw new Error('Event not found')
+    const now = new Date().toISOString()
+    const source: CalendarEvent = { ...input, recurrence: 'none', repeat_until: null, id: id ?? crypto.randomUUID(), created_at: original?.created_at ?? now, updated_at: now }
+    const created: CalendarEvent[] = copies.map(copy => ({ ...copy, id: crypto.randomUUID(), created_at: now, updated_at: now }))
+    state.events = [...state.events.filter(e => e.id !== source.id), source, ...created]
+    writeDemo(state)
+    return [source, ...created]
+  },
   async saveEvent(id, updates) {
     const state = readDemo()
     state.events = state.events.map(e => e.id === id ? { ...e, ...updates, updated_at: new Date().toISOString() } : e)
@@ -123,6 +137,12 @@ export function createCloudRepository(userId: string): Repository {
       const { data, error } = await client.from('events').insert({ ...input, user_id: userId }).select('id,title,description,event_date,start_time,end_time,all_day,color,note_id,recurrence,repeat_until,created_at,updated_at').single()
       assertNoError(error)
       return data as CalendarEvent
+    },
+    async saveEventWithCopies(input, id, count) {
+      weeklyCopies(input, count) // Validate the same bounds as demo mode before sending.
+      const { data, error } = await client.rpc('save_event_with_copies', { p_event_id: id ?? null, p_input: input, p_copy_count: count })
+      assertNoError(error)
+      return data as CalendarEvent[]
     },
     async saveEvent(id, updates) {
       const { error } = await client.from('events').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id).eq('user_id', userId)

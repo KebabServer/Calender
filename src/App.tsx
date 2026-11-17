@@ -131,9 +131,13 @@ function Workspace({ session }: { session: Session | null }) {
     try { await inFlightSaves.current.get(id)?.catch(() => {}); await repository.removeNote(id); setNotes(old => old.filter(n => n.id !== id)); setEvents(old => old.map(e => e.note_id === id ? { ...e, note_id: null } : e)); setSelectedNoteId(null) }
     catch (e) { setError(e instanceof Error ? e.message : String(e)) }
   }
-  async function saveEvent(input: EventInput, id?: string) {
-    if (id) { await repository.saveEvent(id, input); setEvents(old => old.map(e => e.id === id ? { ...e, ...input, updated_at: new Date().toISOString() } : e)) }
-    else { const created = await repository.createEvent(input); setEvents(old => [...old, created]) }
+  async function saveEvent(input: EventInput, id?: string, copyCount = 0) {
+    if (copyCount > 0) {
+      const saved = await repository.saveEventWithCopies(input, id, copyCount)
+      setEvents(old => [...new Map([...old, ...saved].map(e => [e.id, e])).values()])
+    }
+    else if (id) { await repository.saveEvent(id, input); setEvents(old => old.map(e => e.id === id ? { ...e, ...input, updated_at: new Date().toISOString() } : e)) }
+    else { const created = await repository.createEvent(input); setEvents(old => [...old.filter(e => e.id !== created.id), created]) }
     const nextDate = id && occursOn({ ...input, id, created_at: '', updated_at: '' }, selectedDate) ? selectedDate : new Date(`${input.event_date}T12:00:00`)
     setMonth(nextDate); setSelectedDate(nextDate)
   }

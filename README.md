@@ -6,7 +6,7 @@ A calm, responsive personal notes-and-calendar app. Made with React, TypeScript,
 
 - 📒 Create, edit, search, pin, delete, and preview Markdown notes; autosave while typing
 - 📅 Monthly calendar with create/edit/delete events, colors, all-day events, and start/end times in calendar cells
-- Weekly repeating events with an optional inclusive end date; edits and deletion apply to the whole series
+- Clone events 1–10 weeks ahead as independent events, preserving times, colors, descriptions and linked notes
 - 🔗 Link notes to events and jump between them
 - Calendar opens by default, with direct navigation to notes and settings
 - 🌓 Light and dark themes; mobile navigation and responsive layouts
@@ -64,13 +64,15 @@ The workflow sets Vite's `VITE_BASE_PATH` to `/<repo-name>/` automatically for s
 
 The app uses no client-side routes, so it works without server redirects. Supabase Realtime updates other open sessions; devices that reconnect fetch current records on page reload. For two devices editing the *same* note simultaneously, the last saved text wins. Add conflict resolution before relying on collaborative editing.
 
-## Weekly events
+## Weekly copies
 
-Create an event, set its first date and start/end times, then choose **Repeat → Every week**. Leave **Repeat until** empty to continue indefinitely, or choose a final date. Events keep the same weekday and local wall-clock time across daylight-saving changes. They are stored as one private series and appear automatically in later months.
+Create or edit an event and turn on **Clone to future weeks**. Choose **1–10 future copies** and select **Save & clone**. This saves the original event plus that many copies: copy 1 is seven days later, copy 2 is fourteen days later, and so on. Each has its own ID, preserves the event details and local start/end times, and can be edited or deleted without changing any other event. Cloning is off by default whenever an event is opened, so editing a copy does not create more copies accidentally.
 
-Opening a weekly occurrence edits the whole series. **Delete series** removes every occurrence after confirmation. Editing or skipping only one occurrence is not supported yet. All-day events can repeat too.
+Source saving and copying happen in one database transaction (or one browser storage write in demo mode). Cloud saves use the authenticated `save_event_with_copies` function, which runs with the caller's permissions and existing RLS.
 
-For an existing Supabase installation created before weekly events, run `supabase/weekly-events.sql` once before deploying this version. Fresh installations use `supabase/schema.sql`, which already includes the recurrence columns. The connected Daymark production project has been upgraded; do not reapply this upgrade there.
+Fresh Supabase installations use `supabase/schema.sql`. Existing installations with the recurrence columns can run `supabase/event-copies.sql` once. Older installations must first add those columns using `supabase/weekly-events.sql`. The connected production project is already upgraded.
+
+The owner's previous open-ended weekly series was explicitly converted to the original plus 10 copies. `supabase/convert-existing-weekly.sql` records that one-time conversion; it is not required for new installations. Legacy series from an older client remain readable and can be converted explicitly in the form. New events do not create recurring series.
 
 ## Check the build
 
