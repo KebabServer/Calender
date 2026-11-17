@@ -272,7 +272,9 @@ h1, h2, h3 { font-family: 'Manrope', 'DM Sans', sans-serif; letter-spacing: -.05
 .calendar-page-header h1 { margin-top: 14px; }
 .calendar-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 275px; gap: 18px; align-items: start; }
 .calendar-main { overflow: hidden; }
-.calendar-controls { min-height: 78px; padding: 22px 23px; display: flex; justify-content: space-between; align-items: center; }
+.calendar-controls { min-height: 78px; padding: 22px 23px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; align-items: center; }
+.calendar-month-heading { display: flex; align-items: center; gap: 10px; }
+.calendar-add-event { width: 34px; height: 34px; padding: 0; flex: none; }
 .calendar-controls h2 { margin: 0; font-size: 20px; }
 .calendar-control-buttons { display: flex; gap: 4px; align-items: center; }
 .today-button { border: 1px solid var(--border); padding: 8px 14px; border-radius: 8px; font-weight: 700; font-size: 11px; margin-right: 7px; }
@@ -500,7 +502,12 @@ h1, h2, h3 { font-family: 'Manrope', 'DM Sans', sans-serif; letter-spacing: -.05
   .workspace-tabs button { padding: 10px; gap: 5px; font-size: 12px; }
   .calendar-view { padding: 18px 12px; }
   .calendar-day { height: 80px; }
-  .calendar-controls { min-height: 60px; padding: 12px; }
+  .calendar-controls { min-height: 60px; padding: 10px; }
+  .calendar-month-heading { gap: 7px; }
+  .calendar-add-event { width: 30px; height: 32px; }
+  .calendar-control-buttons { gap: 2px; margin-left: auto; }
+  .calendar-control-buttons .icon-button { width: 30px; height: 32px; }
+  .calendar-control-buttons .today-button { padding: 7px 8px; margin-right: 2px; }
   .cal-week-label { height: 32px; }
   .notes-layout { height: calc(100dvh - 56px); }
   .toast-error { bottom: 14px; }

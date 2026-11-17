@@ -17,7 +17,7 @@ for (const width of [320, 390, 768, 1440]) {
     const errors: string[] = []
     page.on('pageerror', error => errors.push(error.message))
     await page.goto('./', { waitUntil: 'domcontentloaded' })
-    await expect(page.getByRole('heading', { name: 'Calendar', exact: true })).toBeVisible()
+    await expect(page.locator('.calendar-controls h2')).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy()
     await page.screenshot({ path: `test-results/calendar-${width}.png` })
     const nav = page.getByRole('navigation', { name: 'Main navigation' })
