@@ -41,6 +41,7 @@ for (const width of [320, 390, 768, 1440]) {
     await page.getByRole('button', { name: 'Add an event', exact: true }).click()
     await page.getByLabel('Event title').fill('Linked event')
     await page.getByLabel('All-day event').check()
+    await page.getByText('More details', { exact: true }).click()
     await page.getByLabel('Link a note').selectOption({ label: 'Responsive test' })
     await page.getByRole('button', { name: 'Create event', exact: true }).click()
     await expect(page.locator('.selected-day .calendar-event-title')).toHaveText('Linked event')

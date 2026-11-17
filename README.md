@@ -5,7 +5,7 @@ A calm, responsive personal notes-and-calendar app. Made with React, TypeScript,
 ## Features
 
 - 📒 Create, edit, search, pin, delete, and preview Markdown notes; autosave while typing
-- 📅 Monthly calendar with create/edit/delete events, colors, all-day events, and start times and durations in calendar cells
+- 📅 Monthly calendar with create/edit/delete events, priorities, all-day events, and start times and durations in calendar cells
 - Clone events 1–10 weeks ahead as independent events, preserving times, colors, descriptions and linked notes
 - 🔗 Link notes to events and jump between them
 - Calendar opens by default, with direct navigation to notes and settings
@@ -63,6 +63,12 @@ The workflow sets Vite's `VITE_BASE_PATH` to `/<repo-name>/` automatically for s
 **Notes:** GitHub Pages handles static builds only; Supabase provides authentication, storage and sync. Open `design-preview.html` for a non-interactive, static visual mockup (the real app is the React project).
 
 The app uses no client-side routes, so it works without server redirects. Supabase Realtime updates other open sessions; devices that reconnect fetch current records on page reload. For two devices editing the *same* note simultaneously, the last saved text wins. Add conflict resolution before relying on collaborative editing.
+
+## Compact event editor
+
+The event form uses equal-width Start time and Duration fields with compact spacing for iPhone SE-sized screens. Optional description and linked note are under **More details**; saved values are kept even when that section is closed. Additional options can scroll inside the dialog while the action buttons remain available.
+
+**Event priority** is ordered left to right: **High** (red), **Medium** (purple), **Low** (blue), **None** (mint). Existing event selections are preserved.
 
 ## Event duration
 
@@ -122,7 +128,7 @@ supabase/schema.sql       # Private cloud database and RLS
 
 1. Run `npm run dev` without an `.env.local` and confirm the calendar loads demo content.
 2. Create a note, write some Markdown, pin it, refresh the page, and confirm it persists.
-3. Create an event, choose a color, link a note, then edit and delete the event.
+3. Create an event, choose a priority, link a note under More details, then edit and delete the event.
 4. Check layout and calendar navigation on a narrow phone-sized browser window.
 5. After setting up Supabase, sign in to the same account on two devices. Create a note on one and confirm it appears on the other; reload to verify persistence.
 6. Confirm that a different Supabase account cannot read your notes or events.

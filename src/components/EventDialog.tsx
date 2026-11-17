@@ -10,7 +10,7 @@ type Props = {
   onDelete: (id: string) => Promise<void>
 }
 const durations = [15, 30, 45, 60, 90, 120, 180, 240]
-const colors = [{ id: 'purple', label: 'Lavender' }, { id: 'mint', label: 'Mint' }, { id: 'peach', label: 'Red' }, { id: 'blue', label: 'Blue' }]
+const priorities = [{ id: 'peach', label: 'High' }, { id: 'purple', label: 'Medium' }, { id: 'blue', label: 'Low' }, { id: 'mint', label: 'None' }]
 export function EventDialog({ event, date, notes, onClose, onSave, onDelete }: Props) {
   const [title, setTitle] = useState(event?.title ?? '')
   const [description, setDescription] = useState(event?.description ?? '')
@@ -61,8 +61,7 @@ export function EventDialog({ event, date, notes, onClose, onSave, onDelete }: P
       <div className="dialog-top"><span className="dialog-top-icon"><CalendarDays size={20}/></span><h2 id="event-dialog-title">{event ? 'Edit event' : 'New event'}</h2><button className="icon-button dialog-close" disabled={busy} onClick={onClose} aria-label="Close dialog"><X size={20}/></button></div>
       <form onSubmit={submit} className="dialog-form">
         <label className="field-label">Event title<input autoFocus required value={title} onChange={e => setTitle(e.target.value)} maxLength={140}/></label>
-        <label className="field-label">Date<input type="date" required value={eventDate} onChange={e => setEventDate(e.target.value)}/></label>
-        <label className="checkbox-row"><input type="checkbox" checked={allDay} onChange={e => setAllDay(e.target.checked)}/><span>All-day event</span></label>
+        <div className="event-date-row"><label className="field-label">Date<input type="date" required value={eventDate} onChange={e => setEventDate(e.target.value)}/></label><label className="checkbox-row"><input type="checkbox" checked={allDay} onChange={e => setAllDay(e.target.checked)}/><span>All-day event</span></label></div>
         {!allDay && <div className="field-two"><label className="field-label">Start time<input type="time" required value={start} onChange={e => setStart(e.target.value)}/></label><label className="field-label">Duration<select aria-label="Duration" value={duration} onChange={e => setDuration(e.target.value)}><option value="unknown">? Unknown</option>{durations.map(minutes => <option key={minutes} value={minutes}>{durationLabel(minutes)}</option>)}<option value="custom">Custom…</option></select></label></div>}
         {!allDay && duration === 'custom' && <label className="field-label">Duration in minutes<input type="number" min={1} max={1440} step={1} required value={customDuration} onChange={e => setCustomDuration(e.target.value)}/></label>}
         {legacySeries && <p className="repeat-summary">This is an older weekly series. It keeps repeating unless you convert it below.</p>}
@@ -71,9 +70,12 @@ export function EventDialog({ event, date, notes, onClose, onSave, onDelete }: P
           <label className="field-label">Future copies<select aria-label="Future copies" value={copyCount} disabled={busy} onChange={e => setCopyCount(Number(e.target.value))}>{Array.from({ length: 10 }, (_, i) => <option key={i + 1} value={i + 1}>{i + 1} {i === 0 ? 'copy' : 'copies'}</option>)}</select></label>
           <p className="repeat-summary">{legacySeries ? 'Replaces the entire series with' : 'Saves'} this event plus {copyCount} independent {copyCount === 1 ? 'copy' : 'copies'}, one per week{eventDate ? ` through ${format(addWeeks(parseISO(eventDate), copyCount), 'MMM d, yyyy')}` : ''}. Each can be edited or deleted separately.</p>
         </>}
-        <label className="field-label">Description <span className="field-optional">optional</span><textarea rows={3} value={description} onChange={e => setDescription(e.target.value)}/></label>
-        <div className="field-label">Event color<div className="color-choices">{colors.map(c => <button type="button" key={c.id} title={c.label} className={`color-choice color-${c.id} ${color === c.id ? 'selected' : ''}`} onClick={() => setColor(c.id)} aria-label={c.label} aria-pressed={color === c.id}>{color === c.id ? '✓' : ''}</button>)}</div></div>
-        <label className="field-label">Link a note <span className="field-optional">optional</span><div className="select-wrap"><Link2 size={16}/><select value={noteId} onChange={e => setNoteId(e.target.value)}><option value="">No linked note</option>{notes.map(n => <option key={n.id} value={n.id}>{n.title || 'Untitled note'}</option>)}</select></div></label>
+        <div className="field-label">Event priority<div className="priority-choices" role="group" aria-label="Event priority">{priorities.map(priority => <button type="button" key={priority.id} title={`${priority.label} priority`} className={`priority-choice ${color === priority.id ? 'selected' : ''}`} onClick={() => setColor(priority.id)} aria-label={`${priority.label} priority`} aria-pressed={color === priority.id}><span className={`priority-swatch color-${priority.id}`}>{color === priority.id ? '✓' : ''}</span><span>{priority.label}</span></button>)}</div></div>
+        <details className="event-extra-details">
+          <summary>More details</summary>
+          <label className="field-label"><span>Description <span className="field-optional">optional</span></span><textarea rows={2} value={description} onChange={e => setDescription(e.target.value)}/></label>
+          <label className="field-label"><span>Link a note <span className="field-optional">optional</span></span><div className="select-wrap"><Link2 size={16}/><select value={noteId} onChange={e => setNoteId(e.target.value)}><option value="">No linked note</option>{notes.map(n => <option key={n.id} value={n.id}>{n.title || 'Untitled note'}</option>)}</select></div></label>
+        </details>
         {error && <div className="form-error" role="alert">{error}</div>}
         <div className="dialog-actions">{event && <button type="button" className="button danger-quiet" disabled={busy} onClick={remove}><Trash2 size={17}/>{legacySeries ? 'Delete series' : 'Delete'}</button>}<div className="dialog-action-spacer"/><button type="button" className="button secondary" disabled={busy} onClick={onClose}>Cancel</button><button className="button primary" type="submit" disabled={busy}>{busy ? 'Saving...' : clone ? legacySeries ? 'Convert & save' : 'Save & clone' : event ? 'Save changes' : 'Create event'}</button></div>
       </form>
