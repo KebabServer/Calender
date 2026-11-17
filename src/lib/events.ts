@@ -9,11 +9,31 @@ export function occursOn(event: CalendarEvent, day: Date): boolean {
     && parseISO(event.event_date).getDay() === day.getDay()
 }
 
-export function eventTimeRange(event: CalendarEvent): string {
+export function durationMinutes(event: Pick<CalendarEvent, 'start_time' | 'end_time'>): number | null {
+  if (!event.start_time || !event.end_time) return null
+  const minutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5))
+  return minutes(event.end_time) - minutes(event.start_time)
+}
+
+export function durationLabel(minutes: number): string {
+  const hours = Math.floor(minutes / 60)
+  const rest = minutes % 60
+  return [hours ? `${hours}h` : '', rest ? `${rest}m` : ''].filter(Boolean).join(' ')
+}
+
+export function endTimeForDuration(start: string, minutes: number | null): string | null {
+  if (minutes === null) return null
+  if (!Number.isInteger(minutes) || minutes < 1 || minutes > 1440) throw new Error('Enter a duration of at least 1 minute.')
+  const total = Number(start.slice(0, 2)) * 60 + Number(start.slice(3, 5)) + minutes
+  if (total > 1440) throw new Error('This duration extends past midnight. Choose a shorter duration or ? Unknown.')
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
+}
+
+export function eventTimeLabel(event: CalendarEvent): string {
   if (event.all_day) return 'All day'
   const start = event.start_time?.slice(0, 5)
-  const end = event.end_time?.slice(0, 5)
-  return start ? `${start}${end ? `–${end}` : ''}` : 'Time not set'
+  const duration = durationMinutes(event)
+  return start ? `${start} · ${duration === null ? '?' : durationLabel(duration)}` : 'Time not set'
 }
 
 // Copies are independent rows. Calendar-week arithmetic preserves local times at DST.

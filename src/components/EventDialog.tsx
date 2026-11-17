@@ -1,6 +1,7 @@
 import { addWeeks, format, parseISO } from 'date-fns'
 import { useEffect, useState } from 'react'
 import { CalendarDays, Link2, Trash2, X } from 'lucide-react'
+import { durationMinutes, durationLabel, endTimeForDuration } from '../lib/events'
 import type { CalendarEvent, EventInput, Note } from '../types'
 
 type Props = {
@@ -8,6 +9,7 @@ type Props = {
   onSave: (input: EventInput, id?: string, copyCount?: number) => Promise<void>
   onDelete: (id: string) => Promise<void>
 }
+const durations = [15, 30, 45, 60, 90, 120, 180, 240]
 const colors = [{ id: 'purple', label: 'Lavender' }, { id: 'mint', label: 'Mint' }, { id: 'peach', label: 'Peach' }, { id: 'blue', label: 'Blue' }]
 export function EventDialog({ event, date, notes, onClose, onSave, onDelete }: Props) {
   const [title, setTitle] = useState(event?.title ?? '')
@@ -15,7 +17,9 @@ export function EventDialog({ event, date, notes, onClose, onSave, onDelete }: P
   const [eventDate, setEventDate] = useState(event?.event_date ?? date)
   const [allDay, setAllDay] = useState(event?.all_day ?? false)
   const [start, setStart] = useState(event?.start_time?.slice(0,5) ?? '09:00')
-  const [end, setEnd] = useState(event?.end_time?.slice(0,5) ?? '10:00')
+  const initialDuration = event && !event.all_day ? durationMinutes(event) : 60
+  const [duration, setDuration] = useState(initialDuration === null ? 'unknown' : durations.includes(initialDuration) ? String(initialDuration) : 'custom')
+  const [customDuration, setCustomDuration] = useState(String(initialDuration ?? 60))
   const [color, setColor] = useState(event?.color ?? 'purple')
   const [noteId, setNoteId] = useState(event?.note_id ?? '')
   const [clone, setClone] = useState(false)
@@ -32,10 +36,11 @@ export function EventDialog({ event, date, notes, onClose, onSave, onDelete }: P
     e.preventDefault()
     if (busy) return
     if (!title.trim()) { setError('Give this event a name.'); return }
-    if (!allDay && end <= start) { setError('End time must be after start time.'); return }
     if (clone && (!Number.isInteger(copyCount) || copyCount < 1 || copyCount > 10)) { setError('Choose between 1 and 10 copies.'); return }
     setBusy(true); setError('')
     try {
+      const minutes = duration === 'unknown' ? null : Number(duration === 'custom' ? customDuration : duration)
+      const end = allDay ? null : endTimeForDuration(start, minutes)
       await onSave({ title: title.trim(), description: description.trim(), event_date: eventDate,
         all_day: allDay, start_time: allDay ? null : start, end_time: allDay ? null : end,
         color, note_id: noteId || null, recurrence: legacySeries && !clone ? 'weekly' : 'none',
@@ -58,7 +63,8 @@ export function EventDialog({ event, date, notes, onClose, onSave, onDelete }: P
         <label className="field-label">Event title<input autoFocus required value={title} onChange={e => setTitle(e.target.value)} maxLength={140}/></label>
         <label className="field-label">Date<input type="date" required value={eventDate} onChange={e => setEventDate(e.target.value)}/></label>
         <label className="checkbox-row"><input type="checkbox" checked={allDay} onChange={e => setAllDay(e.target.checked)}/><span>All-day event</span></label>
-        {!allDay && <div className="field-two"><label className="field-label">Start time<input type="time" required value={start} onChange={e => setStart(e.target.value)}/></label><label className="field-label">End time<input type="time" required value={end} onChange={e => setEnd(e.target.value)}/></label></div>}
+        {!allDay && <div className="field-two"><label className="field-label">Start time<input type="time" required value={start} onChange={e => setStart(e.target.value)}/></label><label className="field-label">Duration<select aria-label="Duration" value={duration} onChange={e => setDuration(e.target.value)}><option value="unknown">? Unknown</option>{durations.map(minutes => <option key={minutes} value={minutes}>{durationLabel(minutes)}</option>)}<option value="custom">Custom…</option></select></label></div>}
+        {!allDay && duration === 'custom' && <label className="field-label">Duration in minutes<input type="number" min={1} max={1440} step={1} required value={customDuration} onChange={e => setCustomDuration(e.target.value)}/></label>}
         {legacySeries && <p className="repeat-summary">This is an older weekly series. It keeps repeating unless you convert it below.</p>}
         <label className="checkbox-row"><input type="checkbox" checked={clone} disabled={busy} onChange={e => setClone(e.target.checked)}/><span>{legacySeries ? 'Convert to independent weekly copies' : 'Clone to future weeks'}</span></label>
         {clone && <>

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { eventTimeRange, weeklyCopies } from '../src/lib/events'
+import { durationMinutes, endTimeForDuration, eventTimeLabel, weeklyCopies } from '../src/lib/events'
 import type { CalendarEvent, EventInput } from '../src/types'
 
 const input: EventInput = { title: 'Weekly class', description: 'Bring a notebook', event_date: '2026-03-22', start_time: '18:00', end_time: '19:30', all_day: false, color: 'mint', note_id: 'demo-note-3', recurrence: 'none', repeat_until: null }
@@ -13,7 +13,7 @@ test('1–10 independent weekly copies preserve attributes and cross month/year 
   expect(weeklyCopies({ ...input, event_date: '2026-12-27', all_day: true, start_time: null, end_time: null }, 1)[0]).toMatchObject({ event_date: '2027-01-03', all_day: true, start_time: null, end_time: null })
   for (const count of [0, 11, 1.5, NaN]) expect(() => weeklyCopies(input, count)).toThrow('1 and 10')
   expect(input.event_date).toBe('2026-03-22')
-  expect(eventTimeRange(input as CalendarEvent)).toBe('18:00–19:30')
+  expect(eventTimeLabel(input as CalendarEvent)).toBe('18:00 · 1h 30m')
 })
 
 test.describe('independent event cloning on a phone', () => {
@@ -24,10 +24,11 @@ test.describe('independent event cloning on a phone', () => {
     await page.getByRole('button', { name: 'Add event', exact: true }).click()
     await page.getByLabel('Event title').fill(input.title)
     await page.getByLabel('Start time').fill('18:00')
-    await page.getByLabel('End time').fill('17:00')
+    await page.getByLabel('Duration', { exact: true }).selectOption('custom')
+    await page.getByLabel('Duration in minutes').fill('500')
     await page.getByRole('button', { name: 'Create event', exact: true }).click()
-    await expect(page.getByRole('alert')).toContainText('End time must be after start time')
-    await page.getByLabel('End time').fill('19:30')
+    await expect(page.getByRole('alert')).toContainText('extends past midnight')
+    await page.getByLabel('Duration', { exact: true }).selectOption('90')
     await page.getByLabel('Description').fill(input.description)
     await page.getByRole('button', { name: 'Mint', exact: true }).click()
     await page.getByLabel('Link a note').selectOption('demo-note-3')
@@ -46,7 +47,7 @@ test.describe('independent event cloning on a phone', () => {
     await page.locator('.day-event-main').filter({ hasText: 'Weekly class' }).click()
     await expect(page.getByLabel('Clone to future weeks')).not.toBeChecked()
     await page.getByLabel('Event title').fill('Edited copy')
-    await page.getByLabel('End time').fill('20:00')
+    await page.getByLabel('Duration', { exact: true }).selectOption('120')
     await page.getByRole('button', { name: 'Save changes' }).click()
     await page.reload({ waitUntil: 'domcontentloaded' })
     expect((await stored()).map((e: CalendarEvent) => [e.title, e.end_time])).toEqual([['Weekly class','19:30'],['Edited copy','20:00'],['Weekly class','19:30']])
@@ -76,4 +77,49 @@ test.describe('independent event cloning on a phone', () => {
     await expect(page.locator('.selected-day .calendar-more')).toHaveText('+1 more')
     expect(await page.locator('.selected-day').evaluate(el => el.querySelector('.calendar-more')!.getBoundingClientRect().bottom <= el.getBoundingClientRect().bottom)).toBeTruthy()
   })
+})
+
+
+test('duration conversion preserves existing lengths and distinguishes unknown', () => {
+  expect(durationMinutes({ start_time: '09:15:00', end_time: '10:25:00' })).toBe(70)
+  expect(endTimeForDuration('09:15', 70)).toBe('10:25')
+  expect(endTimeForDuration('23:00', 60)).toBe('24:00')
+  expect(endTimeForDuration('23:30', null)).toBeNull()
+  expect(() => endTimeForDuration('23:30', 60)).toThrow('past midnight')
+  expect(eventTimeLabel({ ...input, end_time: null } as CalendarEvent)).toBe('18:00 · ?')
+  expect(weeklyCopies({ ...input, end_time: null }, 10).every(e => e.end_time === null)).toBeTruthy()
+})
+
+test('one-hour default and unknown durations persist and clone independently', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 667 })
+  await page.clock.setFixedTime(new Date('2026-03-22T10:00:00Z'))
+  await page.goto('./', { waitUntil: 'domcontentloaded' })
+  await page.getByRole('button', { name: 'Add event', exact: true }).click()
+  await expect(page.getByLabel('Duration', { exact: true })).toHaveValue('60')
+  await page.getByLabel('Event title').fill('Duration check')
+  await page.getByLabel('Start time').fill('18:00')
+  await page.getByRole('button', { name: 'Create event', exact: true }).click()
+  await page.locator('.day-event-main').filter({ hasText: 'Duration check' }).click()
+  await expect(page.getByLabel('Duration', { exact: true })).toHaveValue('60')
+  await page.getByLabel('Duration', { exact: true }).selectOption('unknown')
+  await page.getByLabel('Clone to future weeks').check()
+  await page.getByLabel('Future copies').selectOption('1')
+  await page.getByRole('button', { name: 'Save & clone', exact: true }).click()
+  await expect(page.locator('.selected-day .calendar-event-time').filter({ hasText: '18:00 · ?' })).toBeVisible()
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.locator('.day-event-main').filter({ hasText: 'Duration check' }).click()
+  await expect(page.getByLabel('Duration', { exact: true })).toHaveValue('unknown')
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click()
+  await page.getByRole('button', { name: /^Sunday, March 29, 2026:/ }).click()
+  await expect(page.locator('.selected-day .calendar-event-time')).toContainText('18:00 · ?')
+  await page.locator('.day-event-main').filter({ hasText: 'Duration check' }).click()
+  await page.getByLabel('Duration', { exact: true }).selectOption('custom')
+  await page.getByLabel('Duration in minutes').fill('70')
+  await page.getByRole('button', { name: 'Save changes' }).click()
+  await page.locator('.day-event-main').filter({ hasText: 'Duration check' }).click()
+  await expect(page.getByLabel('Duration', { exact: true })).toHaveValue('custom')
+  await expect(page.getByLabel('Duration in minutes')).toHaveValue('70')
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click()
+  await page.getByRole('button', { name: /^Sunday, March 22, 2026:/ }).click()
+  await expect(page.locator('.selected-day .calendar-event-time').filter({ hasText: '18:00 · ?' })).toBeVisible()
 })

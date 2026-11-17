@@ -13,7 +13,7 @@ export type CalendarEvent = {
   description: string
   event_date: string // YYYY-MM-DD, independent of device timezone
   start_time: string | null // local wall-clock time, HH:mm
-  end_time: string | null
+  end_time: string | null // null on a timed event means unknown duration
   all_day: boolean
   color: string
   recurrence?: 'none' | 'weekly' // Missing on older browser demo records.

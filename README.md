@@ -5,7 +5,7 @@ A calm, responsive personal notes-and-calendar app. Made with React, TypeScript,
 ## Features
 
 - 📒 Create, edit, search, pin, delete, and preview Markdown notes; autosave while typing
-- 📅 Monthly calendar with create/edit/delete events, colors, all-day events, and start/end times in calendar cells
+- 📅 Monthly calendar with create/edit/delete events, colors, all-day events, and start times and durations in calendar cells
 - Clone events 1–10 weeks ahead as independent events, preserving times, colors, descriptions and linked notes
 - 🔗 Link notes to events and jump between them
 - Calendar opens by default, with direct navigation to notes and settings
@@ -64,9 +64,15 @@ The workflow sets Vite's `VITE_BASE_PATH` to `/<repo-name>/` automatically for s
 
 The app uses no client-side routes, so it works without server redirects. Supabase Realtime updates other open sessions; devices that reconnect fetch current records on page reload. For two devices editing the *same* note simultaneously, the last saved text wins. Add conflict resolution before relying on collaborative editing.
 
+## Event duration
+
+Timed events use **Start time + Duration**, with **1h** selected for new events. Choose a preset, enter a custom duration in minutes, or select **? Unknown**. The calendar shows the start and duration, for example `18:00 · 1h` or `18:00 · ?`. Existing events retain their duration, calculated from their stored start/end times. All-day events remain unchanged.
+
+Durations end on the event's date (or exactly at midnight). For longer spans past midnight, split the event or use unknown duration. Existing installations must run `supabase/unknown-event-duration.sql` once before deploying this version; the connected production project is already upgraded. Unknown durations use a null end time and are preserved when cloning.
+
 ## Weekly copies
 
-Create or edit an event and turn on **Clone to future weeks**. Choose **1–10 future copies** and select **Save & clone**. This saves the original event plus that many copies: copy 1 is seven days later, copy 2 is fourteen days later, and so on. Each has its own ID, preserves the event details and local start/end times, and can be edited or deleted without changing any other event. Cloning is off by default whenever an event is opened, so editing a copy does not create more copies accidentally.
+Create or edit an event and turn on **Clone to future weeks**. Choose **1–10 future copies** and select **Save & clone**. This saves the original event plus that many copies: copy 1 is seven days later, copy 2 is fourteen days later, and so on. Each has its own ID, preserves the event details, local start time and duration, and can be edited or deleted without changing any other event. Cloning is off by default whenever an event is opened, so editing a copy does not create more copies accidentally.
 
 Source saving and copying happen in one database transaction (or one browser storage write in demo mode). Cloud saves use the authenticated `save_event_with_copies` function, which runs with the caller's permissions and existing RLS.
 
