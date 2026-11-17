@@ -239,6 +239,9 @@ h1, h2, h3 { font-family: 'Manrope', 'DM Sans', sans-serif; letter-spacing: -.05
 .editor-toolbar-top { height: 70px; flex: none; border-bottom: 1px solid var(--border-soft); display: flex; justify-content: flex-end; gap: 14px; align-items: center; padding: 0 31px; }
 .editor-top-right { display: flex; align-items: center; gap: 8px; }
 .save-indicator { color: var(--muted); font-size: 10px; display: flex; gap: 7px; align-items: center; margin-right: 11px; }
+.save-indicator.save-failed { color: var(--peach); white-space: nowrap; margin-right: 0; gap: 5px; }
+.save-failed .saved-dot { background: var(--peach); box-shadow: none; }
+.retry-save { color: inherit; font-size: inherit; text-decoration: underline; }
 .saved-dot { background: #78d4b5; width: 6px; height: 6px; border-radius: 50%; }
 .saving-pulse { background: var(--accent); width: 6px; height: 6px; border-radius: 50%; animation: pulse 1s infinite; }
 @keyframes pulse { 50% { opacity: .25; } }

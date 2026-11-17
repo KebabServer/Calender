@@ -28,7 +28,7 @@ try {
   if(url.pathname.includes('/rest/v1/events')) {
    assert.equal(url.searchParams.get('user_id'),`eq.${id}`)
    const eventId=url.searchParams.get('id')?.slice(3)
-   if(req.method()==='PATCH') {records=records.map(e=>e.id===eventId?{...e,...req.postDataJSON()}:e);updated=true;return route.fulfill({status:204,body:''})}
+   if(req.method()==='PATCH') {records=records.map(e=>e.id===eventId?{...e,...req.postDataJSON()}:e);updated=true;return route.fulfill({json:[{id:eventId}]})}
    if(req.method()==='DELETE') {records=records.filter(e=>e.id!==eventId);removed=true;return route.fulfill({status:204,body:''})}
    return route.fulfill({json:records})
   }

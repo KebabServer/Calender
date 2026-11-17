@@ -12,8 +12,9 @@ import { updateUrl, useAppUpdate } from './lib/app-updates'
 import { Sidebar } from './components/Sidebar'
 import { createCloudRepository, demoRepository } from './data/repository'
 import { occursOn } from './lib/events'
+import { useNoteAutosave } from './lib/use-note-autosave'
 import { cloudEnabled, supabase } from './lib/supabase'
-import type { CalendarEvent, EventInput, Note, NoteFilter, View, Task } from './types'
+import type { CalendarEvent, EventInput, NoteFilter, View, Task } from './types'
 
 const formatDay = (date: Date) => format(date, 'yyyy-MM-dd')
 function App() {
@@ -45,7 +46,6 @@ function App() {
 function Workspace({ session, update }: { session: Session | null; update: string | null }) {
   const authReady = true
   const [activeView, setActiveView] = useState<View>('calendar')
-  const [notes, setNotes] = useState<Note[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
   const [undoTasks, setUndoTasks] = useState<Task[]>([])
   const [taskBusy, setTaskBusy] = useState(false)
@@ -59,37 +59,35 @@ function Workspace({ session, update }: { session: Session | null; update: strin
   const [dialog, setDialog] = useState<{date: string; event: CalendarEvent | null}|null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [theme, setTheme] = useState<'dark'|'light'>(() => localStorage.getItem('daymark_theme') === 'light' ? 'light' : 'dark')
   const [updating, setUpdating] = useState(false)
-  const dirtyNoteIds = useRef(new Set<string>())
-  const pendingTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>())
-  const pendingPatches = useRef(new Map<string, Partial<Pick<Note,'title'|'content'|'pinned'>>>())
-  const inFlightSaves = useRef(new Map<string, Promise<void>>())
+  const [signingOut, setSigningOut] = useState(false)
+  const eventRevision = useRef(0)
+  const eventOperations = useRef(0)
+  const refreshSequence = useRef(0)
   const activeUserId = session?.user.id
   const repository = useMemo(() => activeUserId && supabase ? createCloudRepository(activeUserId) : demoRepository, [activeUserId])
 
   useEffect(() => { document.documentElement.dataset.theme = theme; localStorage.setItem('daymark_theme', theme) }, [theme])
-  useEffect(() => () => {
-    for (const timer of pendingTimers.current.values()) clearTimeout(timer)
-    pendingTimers.current.clear()
-    pendingPatches.current.clear()
-  }, [])
+  const { notes, revision: noteRevision, mergeRemote: mergeNotes, edit: editNote, create: newNote, remove: removeNote,
+    flush: flushNotes, status: noteStatus, saving, hasUnsaved } = useNoteAutosave(repository, setError)
 
   const refresh = useCallback(async () => {
-    const revision = taskRevision.current
+    const request = ++refreshSequence.current
+    const revisions = { notes: noteRevision.current, events: eventRevision.current, tasks: taskRevision.current }
     const [nextNotes, nextEvents, nextTasks] = await Promise.all([repository.getNotes(), repository.getEvents(), repository.getTasks()])
-    setNotes(current => nextNotes.map(n => (pendingPatches.current.has(n.id) || inFlightSaves.current.has(n.id) || dirtyNoteIds.current.has(n.id)) ? current.find(c => c.id === n.id) || n : n))
-    setEvents(nextEvents)
-    if (revision === taskRevision.current) setTasks(nextTasks)
-  }, [repository])
+    if (request !== refreshSequence.current) return
+    mergeNotes(nextNotes, revisions.notes)
+    if (!eventOperations.current && revisions.events === eventRevision.current) setEvents(nextEvents)
+    if (revisions.tasks === taskRevision.current) setTasks(nextTasks)
+  }, [repository, mergeNotes, noteRevision])
 
   useEffect(() => {
-    if (!authReady || (cloudEnabled && !activeUserId)) { setLoading(false); setNotes([]); setEvents([]); setTasks([]); return }
+    if (!authReady || (cloudEnabled && !activeUserId)) { setLoading(false); setEvents([]); setTasks([]); return }
     let cancelled = false
     setLoading(true)
-    Promise.all([repository.getNotes(), repository.getEvents(), repository.getTasks()]).then(([loadedNotes, loadedEvents, loadedTasks]) => { if (!cancelled) { setNotes(loadedNotes); setEvents(loadedEvents); setTasks(loadedTasks); setLoading(false) } }).catch(e => { if (!cancelled) { setError(e instanceof Error ? e.message : String(e)); setLoading(false) } })
+    void refresh().then(() => { if (!cancelled) setLoading(false) }).catch(e => { if (!cancelled) { setError(e instanceof Error ? e.message : String(e)); setLoading(false) } })
     let channel: ReturnType<NonNullable<typeof supabase>['channel']> | undefined
     if (supabase && activeUserId) {
       channel = supabase.channel(`daymark-data-${activeUserId}`)
@@ -110,56 +108,35 @@ function Workspace({ session, update }: { session: Session | null; update: strin
     return () => { window.removeEventListener('focus', syncOnReturn); window.removeEventListener('online', syncOnReturn); document.removeEventListener('visibilitychange', syncOnReturn) }
   }, [authReady, activeUserId, refresh])
 
-  function enqueueSave(id: string, patch: Partial<Pick<Note,'title'|'content'|'pinned'>>) {
-    // Serialize saves per note so slower requests cannot overwrite newer text.
-    const previous = inFlightSaves.current.get(id) ?? Promise.resolve()
-    const next = previous.catch(() => {}).then(() => repository.saveNote(id, patch))
-    inFlightSaves.current.set(id, next)
-    void next.then(() => {
-      if (inFlightSaves.current.get(id) === next && !pendingPatches.current.has(id)) dirtyNoteIds.current.delete(id)
-    }).catch(e => setError(`Could not save note: ${e instanceof Error ? e.message : String(e)}`)).finally(() => {
-      if (inFlightSaves.current.get(id) === next) inFlightSaves.current.delete(id)
-      setSaving(pendingTimers.current.size > 0 || inFlightSaves.current.size > 0)
-    })
-    return next
-  }
   async function createNote() {
-    try { const note = await repository.createNote(); setNotes(old => [note, ...old]); setSelectedNoteId(note.id); setNoteFilter('all'); setActiveView('notes') }
+    try { const note = await newNote(); setSelectedNoteId(note.id); setNoteFilter('all'); setActiveView('notes') }
     catch (e) { setError(e instanceof Error ? e.message : String(e)) }
-  }
-  function editNote(id: string, changes: Partial<Pick<Note,'title'|'content'|'pinned'>>) {
-    setNotes(old => old.map(n => n.id === id ? { ...n, ...changes, updated_at: new Date().toISOString() } : n))
-    dirtyNoteIds.current.add(id)
-    const current = notes.find(n => n.id === id)
-    pendingPatches.current.set(id, { ...(current ? { title: current.title, content: current.content, pinned: current.pinned } : {}), ...pendingPatches.current.get(id), ...changes })
-    const timer = pendingTimers.current.get(id)
-    if (timer) clearTimeout(timer)
-    setSaving(true)
-    pendingTimers.current.set(id, setTimeout(() => {
-      const patch = pendingPatches.current.get(id)
-      pendingPatches.current.delete(id)
-      pendingTimers.current.delete(id)
-      if (patch) void enqueueSave(id, patch)
-    }, 650))
   }
   async function deleteNote(id: string) {
     if (!window.confirm('Delete this note? This cannot be undone.')) return
-    if (pendingTimers.current.get(id)) clearTimeout(pendingTimers.current.get(id))
-    pendingTimers.current.delete(id); pendingPatches.current.delete(id)
-    try { await inFlightSaves.current.get(id)?.catch(() => {}); await repository.removeNote(id); dirtyNoteIds.current.delete(id); setNotes(old => old.filter(n => n.id !== id)); setEvents(old => old.map(e => e.note_id === id ? { ...e, note_id: null } : e)); setSelectedNoteId(null) }
+    eventRevision.current++; eventOperations.current++
+    try { await removeNote(id); setEvents(old => old.map(e => e.note_id === id ? { ...e, note_id: null } : e)); setSelectedNoteId(null) }
     catch (e) { setError(e instanceof Error ? e.message : String(e)) }
+    finally { eventRevision.current++; eventOperations.current-- }
   }
   async function saveEvent(input: EventInput, id?: string, copyCount = 0) {
-    if (copyCount > 0) {
-      const saved = await repository.saveEventWithCopies(input, id, copyCount)
-      setEvents(old => [...new Map([...old, ...saved].map(e => [e.id, e])).values()])
-    }
-    else if (id) { await repository.saveEvent(id, input); setEvents(old => old.map(e => e.id === id ? { ...e, ...input, updated_at: new Date().toISOString() } : e)) }
-    else { const created = await repository.createEvent(input); setEvents(old => [...old.filter(e => e.id !== created.id), created]) }
-    const nextDate = id && occursOn({ ...input, id, created_at: '', updated_at: '' }, selectedDate) ? selectedDate : new Date(`${input.event_date}T12:00:00`)
-    setMonth(nextDate); setSelectedDate(nextDate)
+    eventRevision.current++; eventOperations.current++
+    try {
+      if (copyCount > 0) {
+        const saved = await repository.saveEventWithCopies(input, id, copyCount)
+        setEvents(old => [...new Map([...old, ...saved].map(e => [e.id, e])).values()])
+      }
+      else if (id) { await repository.saveEvent(id, input); setEvents(old => old.map(e => e.id === id ? { ...e, ...input, updated_at: new Date().toISOString() } : e)) }
+      else { const created = await repository.createEvent(input); setEvents(old => [...old.filter(e => e.id !== created.id), created]) }
+      const nextDate = id && occursOn({ ...input, id, created_at: '', updated_at: '' }, selectedDate) ? selectedDate : new Date(`${input.event_date}T12:00:00`)
+      setMonth(nextDate); setSelectedDate(nextDate)
+    } finally { eventRevision.current++; eventOperations.current-- }
   }
-  async function deleteEvent(id: string) { await repository.removeEvent(id); setEvents(old => old.filter(e => e.id !== id)) }
+  async function deleteEvent(id: string) {
+    eventRevision.current++; eventOperations.current++
+    try { await repository.removeEvent(id); setEvents(old => old.filter(e => e.id !== id)) }
+    finally { eventRevision.current++; eventOperations.current-- }
+  }
   function openNote(id: string) { setActiveView('notes'); setSelectedNoteId(id); setNoteFilter('all') }
   async function addTask(title: string) {
     setTaskBusy(true); taskRevision.current++
@@ -205,35 +182,23 @@ function Workspace({ session, update }: { session: Session | null; update: strin
     const link = document.createElement('a'); link.href = url; link.download = `daymark-backup-${formatDay(new Date())}.json`; link.click(); URL.revokeObjectURL(url)
   }
   async function signOut() {
-    if (taskBusy || taskDraftDirty) { setError('Finish or cancel your task edit before signing out.'); return }
-    for (const timer of pendingTimers.current.values()) clearTimeout(timer)
-    pendingTimers.current.clear()
+    if (updating || signingOut) return
+    if (taskBusy || taskDraftDirty || dialog) { setError('Finish or cancel your edit before signing out.'); return }
+    setSigningOut(true)
     try {
-      await Promise.all([...pendingPatches.current].map(([id, patch]) => enqueueSave(id, patch)))
-      await Promise.all([...inFlightSaves.current.values()])
-    } catch (e) { setError(`Save failed; could not sign out safely: ${String(e)}`); return }
-    pendingPatches.current.clear()
-    setSettingsOpen(false)
-    const { error } = await supabase!.auth.signOut()
-    if (error) setError(error.message)
+      await flushNotes()
+      const { error } = await supabase!.auth.signOut()
+      if (error) throw error
+    } catch (e) { setError(`Could not sign out safely: ${e instanceof Error ? e.message : String(e)}. Your unsaved notes are still here.`) }
+    finally { setSigningOut(false) }
   }
 
   async function applyUpdate() {
-    if (!update || dialog || updating || taskBusy || taskDraftDirty || undoTasks.length) return
+    if (!update || dialog || updating || signingOut || taskBusy || taskDraftDirty || undoTasks.length) return
     if (!navigator.onLine) { setError('Connect to the internet before updating. Your changes are still here.'); return }
     setUpdating(true)
     try {
-      for (const timer of pendingTimers.current.values()) clearTimeout(timer)
-      pendingTimers.current.clear()
-      await Promise.allSettled([...inFlightSaves.current.values()])
-      const patches = new Map(pendingPatches.current)
-      pendingPatches.current.clear()
-      // Include failed earlier saves; the latest in-memory note is the source of truth.
-      for (const id of dirtyNoteIds.current) {
-        const note = notes.find(n => n.id === id)
-        if (note) patches.set(id, { title: note.title, content: note.content, pinned: note.pinned })
-      }
-      await Promise.all([...patches].map(([id, patch]) => enqueueSave(id, patch)))
+      await flushNotes()
       window.location.replace(updateUrl(update))
     } catch {
       setUpdating(false)
@@ -242,13 +207,14 @@ function Workspace({ session, update }: { session: Session | null; update: strin
   }
 
   useEffect(() => {
-    if (update && navigator.onLine && !updating && !undoTasks.length && !loading && !saving && !taskBusy && !taskDraftDirty && !dialog && !settingsOpen && activeView === 'calendar'
-      && dirtyNoteIds.current.size === 0 && !inFlightSaves.current.size && !pendingPatches.current.size
+    if (update && navigator.onLine && !updating && !signingOut && !undoTasks.length && !loading && !saving && !taskBusy && !taskDraftDirty && !dialog && !settingsOpen && activeView === 'calendar'
+      && !hasUnsaved
       && new URL(window.location.href).searchParams.get('daymark_release') !== update) {
       window.location.replace(updateUrl(update))
     }
-  }, [update, updating, undoTasks.length, loading, saving, taskBusy, taskDraftDirty, dialog, settingsOpen, activeView])
+  }, [update, updating, signingOut, hasUnsaved, undoTasks.length, loading, saving, taskBusy, taskDraftDirty, dialog, settingsOpen, activeView])
 
+  if (signingOut) return <div className="app-loading" role="status">Saving changes and signing out…</div>
   if (updating) return <div className="app-loading" role="status">Saving changes and updating…</div>
   if (!authReady) return <div className="app-loading"><LoaderCircle className="spin" size={30}/><span>Opening Daymark...</span></div>
   if (cloudEnabled && !session) return <><AuthScreen/>{error && <div className="toast-error"><AlertCircle size={17}/>{error}<button onClick={() => setError('')} aria-label="Dismiss"><X size={16}/></button></div>}</>
@@ -257,7 +223,7 @@ function Workspace({ session, update }: { session: Session | null; update: strin
     {undoTasks.length > 0 && <div className="undo-notice" role="status"><span>{undoTasks.length === 1 ? 'Task deleted.' : `${undoTasks.length} tasks deleted.`}</span><button className="button primary" disabled={taskBusy} onClick={() => void undoTaskDeletion()}>Undo</button><button className="icon-button" disabled={taskBusy} aria-label="Dismiss undo" onClick={() => setUndoTasks([])}><X size={16}/></button></div>}
     <Sidebar active={activeView} onNavigate={setActiveView} onOpenSettings={() => setSettingsOpen(true)}/>
     <main className="app-main">
-      {loading ? <div className="content-loading"><LoaderCircle size={27} className="spin"/><span>Loading...</span></div> : <><div hidden={activeView !== 'tasks'}><TasksView tasks={tasks} busy={taskBusy} onDraftChange={setTaskDraftDirty} onAdd={addTask} onChange={changeTask} onDelete={deleteTask}/></div>{activeView === 'notes' ? <NotesView notes={notes} selectedId={selectedNoteId} onSelect={setSelectedNoteId} onCreate={() => void createNote()} onEdit={editNote} onDelete={id => void deleteNote(id)} filter={noteFilter} onFilter={setNoteFilter} saving={saving}/> : activeView === 'calendar' ? <CalendarView month={month} onMonth={setMonth} selectedDate={selectedDate} onSelectDate={setSelectedDate} events={events} notes={notes} onCreate={() => setDialog({ date: formatDay(selectedDate), event: null })} onOpenEvent={e => setDialog({ date: e.event_date, event: e })} onOpenNote={openNote}/> : null}</>}
+      {loading ? <div className="content-loading"><LoaderCircle size={27} className="spin"/><span>Loading...</span></div> : <><div hidden={activeView !== 'tasks'}><TasksView tasks={tasks} busy={taskBusy} onDraftChange={setTaskDraftDirty} onAdd={addTask} onChange={changeTask} onDelete={deleteTask}/></div>{activeView === 'notes' ? <NotesView notes={notes} selectedId={selectedNoteId} onSelect={setSelectedNoteId} onCreate={() => void createNote()} onEdit={editNote} onDelete={id => void deleteNote(id)} filter={noteFilter} onFilter={setNoteFilter} saveStatus={selectedNoteId ? noteStatus(selectedNoteId) : 'saved'} onRetrySave={() => { setError(''); void flushNotes().catch(() => {}) }}/> : activeView === 'calendar' ? <CalendarView month={month} onMonth={setMonth} selectedDate={selectedDate} onSelectDate={setSelectedDate} events={events} notes={notes} onCreate={() => setDialog({ date: formatDay(selectedDate), event: null })} onOpenEvent={e => setDialog({ date: e.event_date, event: e })} onOpenNote={openNote}/> : null}</>}
     </main>
     {dialog && <EventDialog key={dialog.event?.id || `new-${dialog.date}`} event={dialog.event} date={dialog.date} notes={notes} onClose={() => setDialog(null)} onSave={saveEvent} onDelete={deleteEvent}/>}
     {settingsOpen && <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) setSettingsOpen(false) }}><section className="settings-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-title"><div className="settings-header"><div><h2 id="settings-title">Settings</h2></div><button className="icon-button" onClick={() => setSettingsOpen(false)} aria-label="Close settings"><X size={20}/></button></div><div className="settings-status"><div className="settings-status-icon">{cloudEnabled ? <Cloud size={24}/> : <CloudOff size={24}/>}</div><div><strong>{cloudEnabled ? 'Cloud sync enabled' : 'Local demo mode'}</strong><p>{cloudEnabled ? `Signed in as ${session?.user.email}. Your content is stored privately in Supabase.` : 'Notes, events and tasks are stored in this browser only. They will NOT sync between devices until you configure Supabase.'}</p></div></div><button className="settings-row" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}><Moon size={19}/><span>Appearance <small>{theme === 'dark' ? 'Dark mode' : 'Light mode'}</small></span><ArrowUpRight size={17}/></button><button className="settings-row" onClick={exportData}><Download size={19}/><span>Export your data <small>Download notes, events and tasks as JSON</small></span><ArrowUpRight size={17}/></button>{!cloudEnabled && <div className="settings-hint">To enable cross-device login, follow the <strong>README.md</strong>, set up Supabase, and redeploy. Demo data won't automatically migrate to your new account.</div>}{cloudEnabled && <button className="settings-row signout" onClick={() => void signOut()}><LogOut size={19}/><span>Sign out <small>End your session on this device</small></span><ArrowUpRight size={17}/></button>}</section></div>}

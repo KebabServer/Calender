@@ -24,6 +24,23 @@ jobs:
           cache: npm
       - run: npm ci --no-audit --no-fund
       - run: npm run typecheck
+      - run: npm run test:security
+      - run: npx playwright install --with-deps chromium
+      - name: Build demo for browser tests
+        env:
+          VITE_BASE_PATH: /Calender/
+          VITE_SUPABASE_URL: ''
+          VITE_SUPABASE_PUBLISHABLE_KEY: ''
+          VITE_SUPABASE_ANON_KEY: ''
+        run: npm run build
+      - run: npm run test:e2e
+      - name: Build mocked cloud app for regression tests
+        env:
+          VITE_BASE_PATH: /Calender/
+          VITE_SUPABASE_URL: https://tktgencmwtanxjfkiadc.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_mock_for_intercepted_tests
+        run: npm run build
+      - run: npm run test:cloud
       - name: Build
         env:
           VITE_BASE_PATH: /${{ github.event.repository.name }}/

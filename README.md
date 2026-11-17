@@ -71,6 +71,20 @@ Open **To-do**, type a task and tap **+** (or press Enter). Use the checkbox to 
 
 Fresh Supabase installations use `supabase/schema.sql`. Existing projects can run `supabase/tasks.sql` once; the connected production project is already upgraded.
 
+## Saving and sync safeguards
+
+Notes show **Saving…**, **Autosaved**, or **Not saved** with a **Retry** button. Failed saves keep the latest draft in memory. Retry, sign-out, and app updates use the same save queue; sign-out and updates stop if any draft cannot be saved. A note deleted on another device keeps its unsaved local draft, which can be copied to a new note or included in an export. Drafts are not a durable offline backup: do not close or reload the page while a save is failing.
+
+Refreshes started before local changes, or superseded by a newer refresh, cannot overwrite those changes. Note and event updates verify that a database row was actually saved. Cross-device simultaneous editing still uses last-save-wins behavior; this does not provide collaborative merge conflict resolution.
+
+## Dependency security
+
+`picomatch` 4.0.7 has an upstream ReDoS advisory, [GHSA-fc5q-39xc-vjpf](https://github.com/advisories/GHSA-fc5q-39xc-vjpf), with no patched npm release currently available. A temporary, checksum-guarded patch runs at install and before dev/build. It treats single-branch repeated extglobs containing wildcards (such as `+(*a)`) as literals using picomatch's existing risky-pattern fallback. Normal build globs are unchanged. Do not use those repeated-wildcard patterns in custom build configuration.
+
+`npm run test:security` checks the reported attack patterns in subprocesses with strict timeouts and verifies normal build globs. CI runs this check, the browser suite, and the mocked cloud regressions before deployment. npm audit still reports the upstream dependency advisory because it does not inspect locally patched files. Replace the temporary patch and version override when a verified fixed release is available; the checksum guard stops installation/build if the upstream parser changes unexpectedly.
+
+Supabase's leaked-password protection requires its Pro plan or above. The connected project uses the Free plan, so that advisory remains until the plan is upgraded and the setting is enabled. Row-level ownership policies and anonymous-access restrictions remain enabled.
+
 ## Compact event editor
 
 The event form uses equal-width Start time and Duration fields with compact spacing for iPhone SE-sized screens. Optional description and linked note are under **More details**; saved values are kept even when that section is closed. Additional options can scroll inside the dialog while the action buttons remain available.

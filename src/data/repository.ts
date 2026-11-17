@@ -94,6 +94,7 @@ export const demoRepository: Repository = {
   },
   async saveNote(id, updates) {
     const state = readDemo()
+    if (!state.notes.some(note => note.id === id)) throw new Error('This note was deleted. Your draft is still here; copy it into a new note or export your data.')
     state.notes = state.notes.map(n => n.id === id ? { ...n, ...updates, updated_at: new Date().toISOString() } : n)
     writeDemo(state)
   },
@@ -125,6 +126,7 @@ export const demoRepository: Repository = {
   },
   async saveEvent(id, updates) {
     const state = readDemo()
+    if (!state.events.some(event => event.id === id)) throw new Error('This event was deleted. Your changes have not been saved.')
     state.events = state.events.map(e => e.id === id ? { ...e, ...updates, updated_at: new Date().toISOString() } : e)
     writeDemo(state)
   },
@@ -183,8 +185,9 @@ export function createCloudRepository(userId: string): Repository {
       return data as Note
     },
     async saveNote(id, updates) {
-      const { error } = await client.from('notes').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id).eq('user_id', userId)
+      const { data, error } = await client.from('notes').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id).eq('user_id', userId).select('id').maybeSingle()
       assertNoError(error)
+      if (!data) throw new Error('This note was deleted on another device. Your draft is still here; copy it into a new note or export your data.')
     },
     async removeNote(id) {
       const { error } = await client.from('notes').delete().eq('id', id).eq('user_id', userId)
@@ -202,8 +205,9 @@ export function createCloudRepository(userId: string): Repository {
       return data as CalendarEvent[]
     },
     async saveEvent(id, updates) {
-      const { error } = await client.from('events').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id).eq('user_id', userId)
+      const { data, error } = await client.from('events').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id).eq('user_id', userId).select('id').maybeSingle()
       assertNoError(error)
+      if (!data) throw new Error('This event was deleted on another device. Your changes have not been saved.')
     },
     async removeEvent(id) {
       const { error } = await client.from('events').delete().eq('id', id).eq('user_id', userId)

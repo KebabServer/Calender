@@ -22,7 +22,7 @@ try {
    if(r.request().method()==='PATCH') {
     attempts++
     if(!recover)return r.fulfill({status:503,json:{message:'Save temporarily unavailable'}})
-    Object.assign(note,r.request().postDataJSON());return r.fulfill({status:204,body:''})
+    Object.assign(note,r.request().postDataJSON());return r.fulfill({json:[{id:note.id}]})
    }
    return r.fulfill({json:[note]})
   }
