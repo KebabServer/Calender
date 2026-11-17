@@ -12,7 +12,7 @@ type Props = {
 export function TasksView({ tasks, busy, onDraftChange, onAdd, onChange, onDelete }: Props) {
   const [draft, setDraft] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [filter, setFilter] = useState<'open' | 'all' | 'done'>('open')
+  const [filter, setFilter] = useState<'open' | 'all' | 'done'>('all')
   const [error, setError] = useState('')
   useEffect(() => { onDraftChange(Boolean(draft.trim() || editingId)) }, [draft, editingId, onDraftChange])
   const open = tasks.filter(t => !t.completed).length
@@ -25,7 +25,7 @@ export function TasksView({ tasks, busy, onDraftChange, onAdd, onChange, onDelet
     setError('')
     try {
       if (editingId) await onChange(editingId, { title })
-      else { await onAdd(title); setFilter('open') }
+      else { await onAdd(title); setFilter('all') }
       setDraft(''); setEditingId(null)
     } catch (e) { setError(e instanceof Error ? e.message : 'Could not save task') }
   }
@@ -35,7 +35,6 @@ export function TasksView({ tasks, busy, onDraftChange, onAdd, onChange, onDelet
     catch (e) { setError(e instanceof Error ? e.message : 'Could not update task') }
   }
   async function remove(task: Task) {
-    if (!window.confirm(`Delete “${task.title}”?`)) return
     setError('')
     try {
       await onDelete(task.id)
@@ -52,7 +51,7 @@ export function TasksView({ tasks, busy, onDraftChange, onAdd, onChange, onDelet
     </form>
     {error && <p className="form-error" role="alert">{error}</p>}
     <div className="task-filters" role="group" aria-label="Task filters">
-      {(['open', 'all', 'done'] as const).map(value => <button key={value} aria-pressed={filter === value} onClick={() => setFilter(value)}>{value === 'open' ? 'Open' : value === 'all' ? 'All' : 'Done'}</button>)}
+      {(['all', 'open', 'done'] as const).map(value => <button key={value} aria-pressed={filter === value} onClick={() => setFilter(value)}>{value === 'open' ? 'Open' : value === 'all' ? 'All' : 'Done'}</button>)}
     </div>
     <ul className="task-list">{visible.map(task => <li key={task.id} className={`task-row ${task.completed ? 'task-completed' : ''}`}>
       <input type="checkbox" checked={task.completed} disabled={busy} aria-label={`${task.completed ? 'Reopen' : 'Complete'} ${task.title}`} onChange={() => void change(task)}/>

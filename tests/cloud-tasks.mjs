@@ -10,19 +10,28 @@ try {
  await page.addInitScript(s=>localStorage.setItem('sb-tktgencmwtanxjfkiadc-auth-token',JSON.stringify(s)),{access_token:token,refresh_token:'mock',expires_at:exp,expires_in:3600,token_type:'bearer',user:{id,aud:'authenticated',role:'authenticated',email:'test@example.test',created_at:new Date().toISOString()}})
  await page.route('https://fonts.googleapis.com/**',r=>r.abort())
  await page.route('https://fonts.gstatic.com/**',r=>r.abort())
- let tasks=[], fail=true, ownerReads=0
+ let tasks=[], fail=true, failRestore=false, ownerReads=0, concurrentRestore=false
  await page.route('https://tktgencmwtanxjfkiadc.supabase.co/**',async r=>{
   const url=new URL(r.request().url()),method=r.request().method()
   if(url.pathname.includes('/rest/v1/tasks')) {
    if(method==='POST') {
     if(fail)return r.fulfill({status:503,json:{message:'Temporary save failure'}})
     const input=r.request().postDataJSON();assert.equal(input.user_id,id)
+    if(input.id){
+     assert.equal(url.searchParams.get('on_conflict'),'id')
+     assert.ok(r.request().headers().prefer.includes('resolution=ignore-duplicates'))
+     if(failRestore)return r.fulfill({status:503,json:{message:'Temporary restore failure'}})
+     if(concurrentRestore){tasks=[{...input,title:'Edited on another device'}];return r.fulfill({json:[]})}
+     const exists=tasks.find(t=>t.id===input.id)
+     if(!exists)tasks.push(input)
+     return r.fulfill({json:exists?[]:[input]})
+    }
     const task={...input,id:'mock-task',created_at:new Date().toISOString(),updated_at:new Date().toISOString()};tasks.push(task);return r.fulfill({json:task})
    }
    assert.equal(url.searchParams.get('user_id'),`eq.${id}`)
    if(method==='PATCH'){Object.assign(tasks[0],r.request().postDataJSON());return r.fulfill({json:tasks[0]})}
    if(method==='DELETE'){tasks=[];return r.fulfill({status:204,body:''})}
-   ownerReads++;return r.fulfill({json:tasks})
+   ownerReads++;return r.fulfill({json:r.request().headers().accept?.includes('vnd.pgrst.object')?tasks[0]:tasks})
   }
   if(url.pathname.includes('/rest/v1/notes')||url.pathname.includes('/rest/v1/events'))return r.fulfill({json:[]})
   return r.abort()
@@ -39,12 +48,28 @@ try {
  await page.reload({waitUntil:'domcontentloaded'})
  await page.getByRole('navigation').getByRole('button',{name:'To-do',exact:true}).click()
  await page.getByRole('checkbox',{name:'Complete Private synced task',exact:true}).click()
+ await page.locator('.task-completed').waitFor()
  await page.getByRole('button',{name:'Done',exact:true}).click()
  assert.ok(await page.getByRole('checkbox',{name:'Reopen Private synced task',exact:true}).isChecked())
  await page.screenshot({path:'/tmp/daymark-tasks-live.png'})
- page.on('dialog',d=>d.accept())
+ const original={...tasks[0]}
  await page.getByRole('button',{name:'Delete Private synced task',exact:true}).click()
  await page.locator('.tasks-empty').waitFor()
  assert.equal(tasks.length,0);assert.ok(ownerReads>=2)
- console.log('PASS: private task CRUD requests, owner filters, persistence, and draft retention after a failed save')
+ failRestore=true
+ await page.getByRole('button',{name:'Undo',exact:true}).click()
+ await page.getByRole('alert').filter({hasText:'Temporary restore failure'}).waitFor()
+ assert.equal(tasks.length,0)
+ failRestore=false
+ await page.getByRole('button',{name:'Undo',exact:true}).click()
+ await page.getByRole('checkbox',{name:'Reopen Private synced task',exact:true}).waitFor()
+ for(const field of ['id','title','completed','created_at'])assert.equal(tasks[0][field],original[field])
+ assert.ok(await page.getByRole('checkbox',{name:'Reopen Private synced task',exact:true}).isChecked())
+ await page.getByRole('button',{name:'Delete Private synced task',exact:true}).click()
+ concurrentRestore=true
+ await page.getByRole('button',{name:'Undo',exact:true}).click()
+ await page.getByRole('checkbox',{name:'Reopen Edited on another device',exact:true}).waitFor()
+ assert.equal(tasks[0].title,'Edited on another device')
+ assert.equal(tasks[0].id,original.id)
+ console.log('PASS: private task CRUD, visible completion, owner-scoped Undo, retry after failure, original identity/status, and concurrent restore without overwriting remote edits')
 }finally{await browser.close()}

@@ -605,3 +605,9 @@ h1, h2, h3 { font-family: 'Manrope', 'DM Sans', sans-serif; letter-spacing: -.05
 .task-row .icon-button { width: 30px; height: 34px; }
 .tasks-empty { padding: 24px 0; color: var(--muted); font-size: 13px; }
 @media (max-width: 700px) { .tasks-view { padding: 18px 12px; } }
+
+.task-completed .icon-button { color: var(--faint); }
+.task-completed > input { opacity: .65; }
+.undo-notice { position: fixed; z-index: 140; bottom: calc(16px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; width: max-content; max-width: calc(100vw - 24px); padding: 10px 12px; background: var(--raised); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); font-size: 12px; }
+.undo-notice .button { min-height: 34px; padding: 6px 12px; }
+.undo-notice .icon-button { width: 28px; height: 30px; }

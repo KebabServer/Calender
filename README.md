@@ -67,7 +67,7 @@ The app uses no client-side routes, so it works without server redirects. Supaba
 
 ## To-do list
 
-Open **To-do**, type a task and tap **+** (or press Enter). Use the checkbox to complete or reopen a task, the pencil to edit it, or the bin to delete it after confirmation. Tasks sync to your account through Supabase, and each user can access only their own tasks. Drafts remain when switching tabs; save or cancel a draft before updating or signing out. Tasks are included in JSON backups.
+Open **To-do**, type a task and tap **+** (or press Enter). Use the checkbox to complete or reopen a task, the pencil to edit it, or the bin to delete it. **All** is the default view: completed tasks stay below open tasks with muted, crossed-out text. Deletions show **Undo** for 10 seconds; it restores the original task and completion status. When deleting several tasks, Undo restores the most recent deletion first. Undo remains available when switching tabs, but ends on reload or sign-out. Tasks sync to your account through Supabase, and each user can access only their own tasks. Drafts remain when switching tabs; save or cancel a draft before updating or signing out. Tasks are included in JSON backups.
 
 Fresh Supabase installations use `supabase/schema.sql`. Existing projects can run `supabase/tasks.sql` once; the connected production project is already upgraded.
 

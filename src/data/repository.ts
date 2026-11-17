@@ -8,6 +8,7 @@ export interface Repository {
   createTask(title: string): Promise<Task>
   saveTask(id: string, updates: Partial<Pick<Task, 'title' | 'completed'>>): Promise<Task>
   removeTask(id: string): Promise<void>
+  restoreTask(task: Task): Promise<Task>
   getNotes(): Promise<Note[]>
   getEvents(): Promise<CalendarEvent[]>
   createNote(): Promise<Note>
@@ -71,6 +72,12 @@ export const demoRepository: Repository = {
     const saved = { ...current, ...updates, updated_at: new Date().toISOString() }
     state.tasks = state.tasks.map(t => t.id === id ? saved : t)
     writeDemo(state); return saved
+  },
+  async restoreTask(task) {
+    const state = readDemo()
+    const existing = state.tasks.find(t => t.id === task.id)
+    if (existing) return existing
+    state.tasks.push(task); writeDemo(state); return task
   },
   async removeTask(id) {
     const state = readDemo(); state.tasks = state.tasks.filter(t => t.id !== id); writeDemo(state)
@@ -147,6 +154,14 @@ export function createCloudRepository(userId: string): Repository {
     async saveTask(id, updates) {
       const { data, error } = await client.from('tasks').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id).eq('user_id', userId).select('id,title,completed,created_at,updated_at').single()
       assertNoError(error); return data as Task
+    },
+    async restoreTask(task) {
+      // Ignore an existing ID: another device may have already restored/edited it.
+      const { data, error } = await client.from('tasks').upsert({ id: task.id, user_id: userId, title: task.title, completed: task.completed, created_at: task.created_at, updated_at: new Date().toISOString() }, { onConflict: 'id', ignoreDuplicates: true }).select('id,title,completed,created_at,updated_at')
+      assertNoError(error)
+      if (data?.[0]) return data[0] as Task
+      const { data: existing, error: readError } = await client.from('tasks').select('id,title,completed,created_at,updated_at').eq('id', task.id).eq('user_id', userId).single()
+      assertNoError(readError); return existing as Task
     },
     async removeTask(id) {
       const { error } = await client.from('tasks').delete().eq('id', id).eq('user_id', userId)
