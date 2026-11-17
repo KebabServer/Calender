@@ -5,7 +5,8 @@ A calm, responsive personal notes-and-calendar app. Made with React, TypeScript,
 ## Features
 
 - 📒 Create, edit, search, pin, delete, and preview Markdown notes; autosave while typing
-- 📅 Monthly calendar with create/edit/delete events, colors, all-day and time slots
+- 📅 Monthly calendar with create/edit/delete events, colors, all-day events, and start/end times in calendar cells
+- Weekly repeating events with an optional inclusive end date; edits and deletion apply to the whole series
 - 🔗 Link notes to events and jump between them
 - Calendar opens by default, with direct navigation to notes and settings
 - 🌓 Light and dark themes; mobile navigation and responsive layouts
@@ -13,7 +14,7 @@ A calm, responsive personal notes-and-calendar app. Made with React, TypeScript,
 - 💾 Download a JSON backup of your data
 - 🚀 GitHub Pages deployment workflow included
 
-**Not yet included:** push notifications, repeating/multi-day events, simultaneous editing conflict resolution, server-side account recovery UI, importing JSON backups, full offline cloud editing, or PWA installation. Events represent a single date and wall-clock time; no timezone conversion is performed.
+**Not yet included:** push notifications, single-occurrence exceptions, multi-day events, simultaneous editing conflict resolution, server-side account recovery UI, importing JSON backups, full offline cloud editing, or PWA installation. Events represent a single date and wall-clock time; no timezone conversion is performed.
 
 ## Quick start — demo mode
 
@@ -62,6 +63,14 @@ The workflow sets Vite's `VITE_BASE_PATH` to `/<repo-name>/` automatically for s
 **Notes:** GitHub Pages handles static builds only; Supabase provides authentication, storage and sync. Open `design-preview.html` for a non-interactive, static visual mockup (the real app is the React project).
 
 The app uses no client-side routes, so it works without server redirects. Supabase Realtime updates other open sessions; devices that reconnect fetch current records on page reload. For two devices editing the *same* note simultaneously, the last saved text wins. Add conflict resolution before relying on collaborative editing.
+
+## Weekly events
+
+Create an event, set its first date and start/end times, then choose **Repeat → Every week**. Leave **Repeat until** empty to continue indefinitely, or choose a final date. Events keep the same weekday and local wall-clock time across daylight-saving changes. They are stored as one private series and appear automatically in later months.
+
+Opening a weekly occurrence edits the whole series. **Delete series** removes every occurrence after confirmation. Editing or skipping only one occurrence is not supported yet. All-day events can repeat too.
+
+For an existing Supabase installation created before weekly events, run `supabase/weekly-events.sql` once before deploying this version. Fresh installations use `supabase/schema.sql`, which already includes the recurrence columns. The connected Daymark production project has been upgraded; do not reapply this upgrade there.
 
 ## Check the build
 

@@ -16,6 +16,8 @@ export type CalendarEvent = {
   end_time: string | null
   all_day: boolean
   color: string
+  recurrence?: 'none' | 'weekly' // Missing on older browser demo records.
+  repeat_until?: string | null // Inclusive final date; null means no end.
   note_id: string | null
   created_at: string
   updated_at: string

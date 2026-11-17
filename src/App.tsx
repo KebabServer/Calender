@@ -8,6 +8,7 @@ import { EventDialog } from './components/EventDialog'
 import { NotesView } from './components/NotesView'
 import { Sidebar } from './components/Sidebar'
 import { createCloudRepository, demoRepository } from './data/repository'
+import { occursOn } from './lib/events'
 import { cloudEnabled, supabase } from './lib/supabase'
 import type { CalendarEvent, EventInput, Note, NoteFilter, View } from './types'
 
@@ -133,7 +134,8 @@ function Workspace({ session }: { session: Session | null }) {
   async function saveEvent(input: EventInput, id?: string) {
     if (id) { await repository.saveEvent(id, input); setEvents(old => old.map(e => e.id === id ? { ...e, ...input, updated_at: new Date().toISOString() } : e)) }
     else { const created = await repository.createEvent(input); setEvents(old => [...old, created]) }
-    setMonth(new Date(`${input.event_date}T12:00:00`)); setSelectedDate(new Date(`${input.event_date}T12:00:00`))
+    const nextDate = id && occursOn({ ...input, id, created_at: '', updated_at: '' }, selectedDate) ? selectedDate : new Date(`${input.event_date}T12:00:00`)
+    setMonth(nextDate); setSelectedDate(nextDate)
   }
   async function deleteEvent(id: string) { await repository.removeEvent(id); setEvents(old => old.filter(e => e.id !== id)) }
   function openNote(id: string) { setActiveView('notes'); setSelectedNoteId(id); setNoteFilter('all') }

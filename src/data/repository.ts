@@ -102,7 +102,7 @@ export function createCloudRepository(userId: string): Repository {
       return (data || []) as Note[]
     },
     async getEvents() {
-      const { data, error } = await client.from('events').select('id,title,description,event_date,start_time,end_time,all_day,color,note_id,created_at,updated_at').eq('user_id', userId).order('event_date')
+      const { data, error } = await client.from('events').select('id,title,description,event_date,start_time,end_time,all_day,color,note_id,recurrence,repeat_until,created_at,updated_at').eq('user_id', userId).order('event_date')
       assertNoError(error)
       return (data || []) as CalendarEvent[]
     },
@@ -120,7 +120,7 @@ export function createCloudRepository(userId: string): Repository {
       assertNoError(error)
     },
     async createEvent(input) {
-      const { data, error } = await client.from('events').insert({ ...input, user_id: userId }).select('id,title,description,event_date,start_time,end_time,all_day,color,note_id,created_at,updated_at').single()
+      const { data, error } = await client.from('events').insert({ ...input, user_id: userId }).select('id,title,description,event_date,start_time,end_time,all_day,color,note_id,recurrence,repeat_until,created_at,updated_at').single()
       assertNoError(error)
       return data as CalendarEvent
     },
