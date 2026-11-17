@@ -7,7 +7,7 @@ import { chromium } from 'playwright'
 const require = createRequire(import.meta.url)
 const exec = promisify(execFile)
 const vite = join(dirname(require.resolve('vite/package.json')), 'bin/vite.js')
-const server = spawn(process.execPath, [vite, 'preview', '--host', '127.0.0.1', '--port', '4173', '--strictPort'], {stdio:'inherit',env:process.env})
+const server = spawn(process.execPath, [vite, 'preview', '--host', '127.0.0.1', '--port', '4173', '--strictPort'], {stdio:'inherit',env:{...process.env,VITE_BASE_PATH:'/Calender/'}})
 try {
   let ready = false
   for (let attempt = 0; attempt < 100; attempt++) {
