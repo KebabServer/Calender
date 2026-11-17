@@ -43,6 +43,8 @@ for (const width of [320, 390, 768, 1440]) {
     await page.getByLabel('All-day event').check()
     await page.getByLabel('Link a note').selectOption({ label: 'Responsive test' })
     await page.getByRole('button', { name: 'Create event', exact: true }).click()
+    await expect(page.locator('.selected-day .calendar-event-title')).toHaveText('Linked event')
+    await expect(page.locator('.selected-day .calendar-event-title')).toBeVisible()
     await page.locator('.day-event-main').filter({ hasText: 'Linked event' }).click()
     await page.getByLabel('Event title').fill('Updated event')
     await page.getByRole('button', { name: 'Save changes' }).click()

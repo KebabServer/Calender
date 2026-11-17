@@ -298,7 +298,7 @@ h1, h2, h3 { font-family: 'Manrope', 'DM Sans', sans-serif; letter-spacing: -.05
 :root[data-theme="light"] .calendar-event-pill.color-blue { color: #446cbe; }
 .pill-dot { height: 5px; width: 5px; border-radius: 50%; flex: none; }
 .calendar-more { font-size: 9px; color: var(--muted); padding-left: 3px; }
-.calendar-mobile-dots { display: none; }
+.calendar-event-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .calendar-footer { display: flex; justify-content: space-between; padding: 14px 20px; font-size: 10px; color: var(--faint); }
 .calendar-footer > span:first-child { display: inline-flex; align-items: center; gap: 6px; }
 .today-legend { width: 8px; height: 8px; background: var(--accent); border-radius: 50%; }
@@ -448,10 +448,10 @@ h1, h2, h3 { font-family: 'Manrope', 'DM Sans', sans-serif; letter-spacing: -.05
   .calendar-page-header .button { padding: 10px 12px; }
   .calendar-page-header .button span { display: none; }
   .calendar-day { height: 80px; padding: 5px 3px; align-items: center; gap: 3px; }
-  .calendar-day-events { display: none; }
-  .calendar-mobile-dots { display: flex; gap: 3px; }
-  .calendar-mobile-dots i { display: block; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
-  .calendar-mobile-dots i.color-mint { background: #7fd8bd; }.calendar-mobile-dots i.color-peach { background: #eeb9a5; }.calendar-mobile-dots i.color-blue { background: #96bafa; }
+  .calendar-day-events { display: flex; gap: 2px; }
+  .calendar-event-pill { flex: none; font-size: 7px; line-height: 10px; font-weight: 600; padding: 1px 2px; gap: 2px; border-radius: 2px; }
+  .calendar-event-pill .pill-dot { width: 3px; height: 3px; }
+  .calendar-more { font-size: 7px; line-height: 9px; padding-left: 1px; }
   .calendar-controls { padding: 18px 13px; }
   .calendar-controls h2 { font-size: 17px; }
   .calendar-day-panel { display: block; }
@@ -499,7 +499,7 @@ h1, h2, h3 { font-family: 'Manrope', 'DM Sans', sans-serif; letter-spacing: -.05
   .workspace-tabs { gap: 0; }
   .workspace-tabs button { padding: 10px; gap: 5px; font-size: 12px; }
   .calendar-view { padding: 18px 12px; }
-  .calendar-day { height: 58px; }
+  .calendar-day { height: 80px; }
   .calendar-controls { min-height: 60px; padding: 12px; }
   .cal-week-label { height: 32px; }
   .notes-layout { height: calc(100dvh - 56px); }
