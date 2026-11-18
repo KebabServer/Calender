@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { format } from 'date-fns'
-import { AlertCircle, ArrowUpRight, Cloud, CloudOff, Download, LoaderCircle, LogOut, Moon, X } from 'lucide-react'
+import { AlertCircle, ArrowUpRight, Cloud, CloudOff, Download, List, LoaderCircle, LogOut, Moon, X } from 'lucide-react'
 import { AuthScreen } from './components/AuthScreen'
 import { CalendarView } from './components/CalendarView'
 import { EventDialog } from './components/EventDialog'
@@ -16,7 +16,7 @@ import { createCloudRepository, demoRepository } from './data/repository'
 import { occursOn } from './lib/events'
 import { useNoteAutosave } from './lib/use-note-autosave'
 import { cloudEnabled, supabase } from './lib/supabase'
-import type { WeatherLocation } from './lib/weather'
+import { WEATHER_COORDINATES, type WeatherLocation } from './lib/weather'
 import type { CalendarEvent, EventInput, NoteFilter, View, Task, TaskInput, TaskUpdates, WatchItem } from './types'
 
 const formatDay = (date: Date) => format(date, 'yyyy-MM-dd')
@@ -49,7 +49,11 @@ function App() {
 function Workspace({ session, update }: { session: Session | null; update: string | null }) {
   const authReady = true
   const [activeView, setActiveView] = useState<View>('calendar')
-  const [weatherLocation, setWeatherLocation] = useState<WeatherLocation>('Helsinki')
+  const [weatherLocation, setWeatherLocation] = useState<WeatherLocation>(() => {
+    const saved = localStorage.getItem('daymark_weather_location') as WeatherLocation | null
+    return saved && Object.hasOwn(WEATHER_COORDINATES, saved) ? saved : 'Helsinki'
+  })
+  const [agendaEnabled, setAgendaEnabled] = useState(() => localStorage.getItem('daymark_calendar_agenda') !== 'off')
   const [tasks, setTasks] = useState<Task[]>([])
   const [undoTasks, setUndoTasks] = useState<Task[]>([])
   const [taskBusy, setTaskBusy] = useState(false)
@@ -76,6 +80,8 @@ function Workspace({ session, update }: { session: Session | null; update: strin
   const activeUserId = session?.user.id
   const repository = useMemo(() => activeUserId && supabase ? createCloudRepository(activeUserId) : demoRepository, [activeUserId])
 
+  useEffect(() => { localStorage.setItem('daymark_weather_location', weatherLocation) }, [weatherLocation])
+  useEffect(() => { localStorage.setItem('daymark_calendar_agenda', agendaEnabled ? 'on' : 'off') }, [agendaEnabled])
   useEffect(() => { document.documentElement.dataset.theme = theme; localStorage.setItem('daymark_theme', theme) }, [theme])
   useEffect(() => () => {
     backupRequest.current?.abort()
@@ -259,16 +265,39 @@ function Workspace({ session, update }: { session: Session | null; update: strin
   if (updating) return <div className="app-loading" role="status">Saving changes and updating…</div>
   if (!authReady) return <div className="app-loading"><LoaderCircle className="spin" size={30}/><span>Opening Daymark...</span></div>
   if (cloudEnabled && !session) return <><AuthScreen/>{error && <div className="toast-error"><AlertCircle size={17}/>{error}<button onClick={() => setError('')} aria-label="Dismiss"><X size={16}/></button></div>}</>
+  const errorNotice = error && <div className={`toast-error ${settingsOpen ? 'settings-error' : update || undoTasks.length ? 'above-update' : ''}`} role="alert">
+    <AlertCircle size={17}/>{error}<button onClick={() => setError('')} aria-label="Dismiss"><X size={16}/></button>
+  </div>
   return <div className="app-shell">
     {update && !undoTasks.length && <UpdateNotice disabled={Boolean(dialog) || taskBusy || taskDraftDirty || watchlistPending} onUpdate={() => void applyUpdate()}/>}
     {undoTasks.length > 0 && <div className="undo-notice" role="status"><span>{undoTasks.length === 1 ? 'Task deleted.' : `${undoTasks.length} tasks deleted.`}</span><button className="button primary" disabled={taskBusy} onClick={() => void undoTaskDeletion()}>Undo</button><button className="icon-button" disabled={taskBusy} aria-label="Dismiss undo" onClick={() => setUndoTasks([])}><X size={16}/></button></div>}
     <Sidebar active={activeView} onNavigate={navigate} onOpenSettings={() => setSettingsOpen(true)}/>
     <main className="app-main">
-      {loading ? <div className="content-loading"><LoaderCircle size={27} className="spin"/><span>Loading...</span></div> : <><WatchlistView active={activeView === 'watchlist'} repository={repository} onPendingChange={setWatchlistPending}/><TasksView active={activeView === 'tasks'} tasks={tasks} busy={taskBusy} onDraftChange={setTaskDraftDirty} onAdd={addTask} onChange={changeTask} onDelete={deleteTask}/>{activeView === 'notes' ? <NotesView notes={notes} selectedId={selectedNoteId} onSelect={selectNote} preview={noteSelection?.preview ?? true} onPreviewChange={setNotePreview} onCreate={() => void createNote()} onEdit={editNote} onDelete={id => void deleteNote(id)} filter={noteFilter} onFilter={setNoteFilter} saveStatus={selectedNoteId ? noteStatus(selectedNoteId) : 'saved'} onRetrySave={() => { setError(''); void flushNotes().catch(() => {}) }}/> : activeView === 'calendar' ? <CalendarView month={month} onMonth={setMonth} selectedDate={selectedDate} onSelectDate={setSelectedDate} events={events} notes={notes} onCreate={() => setDialog({ date: formatDay(selectedDate), event: null })} onOpenEvent={e => setDialog({ date: e.event_date, event: e })} onOpenNote={openNote}/> : activeView === 'weather' ? <WeatherView location={weatherLocation} onLocationChange={setWeatherLocation}/> : null}</>}
+      {loading ? <div className="content-loading"><LoaderCircle size={27} className="spin"/><span>Loading...</span></div> : <><WatchlistView active={activeView === 'watchlist'} repository={repository} onPendingChange={setWatchlistPending}/><TasksView active={activeView === 'tasks'} tasks={tasks} busy={taskBusy} onDraftChange={setTaskDraftDirty} onAdd={addTask} onChange={changeTask} onDelete={deleteTask}/>{activeView === 'notes' ? <NotesView notes={notes} selectedId={selectedNoteId} onSelect={selectNote} preview={noteSelection?.preview ?? true} onPreviewChange={setNotePreview} onCreate={() => void createNote()} onEdit={editNote} onDelete={id => void deleteNote(id)} filter={noteFilter} onFilter={setNoteFilter} saveStatus={selectedNoteId ? noteStatus(selectedNoteId) : 'saved'} onRetrySave={() => { setError(''); void flushNotes().catch(() => {}) }}/> : activeView === 'calendar' ? <CalendarView month={month} onMonth={setMonth} selectedDate={selectedDate} onSelectDate={setSelectedDate} events={events} notes={notes} agendaEnabled={agendaEnabled} onCreate={day => setDialog({ date: formatDay(day), event: null })} onOpenEvent={e => setDialog({ date: e.event_date, event: e })} onOpenNote={openNote}/> : activeView === 'weather' ? <WeatherView location={weatherLocation} onLocationChange={setWeatherLocation}/> : null}</>}
     </main>
     {dialog && <EventDialog key={dialog.event?.id || `new-${dialog.date}`} event={dialog.event} date={dialog.date} notes={notes} onClose={() => setDialog(null)} onSave={saveEvent} onDelete={deleteEvent}/>}
-    {settingsOpen && <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) setSettingsOpen(false) }}><section className="settings-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-title"><div className="settings-header"><div><h2 id="settings-title">Settings</h2></div><button className="icon-button" onClick={() => setSettingsOpen(false)} aria-label="Close settings"><X size={20}/></button></div><div className="settings-status"><div className="settings-status-icon">{cloudEnabled ? <Cloud size={24}/> : <CloudOff size={24}/>}</div><div><strong>{cloudEnabled ? 'Cloud sync enabled' : 'Local demo mode'}</strong><p>{cloudEnabled ? `Signed in as ${session?.user.email}. Your content is stored privately in Supabase.` : 'Your content is stored in this browser only. They will NOT sync between devices until you configure Supabase.'}</p></div></div><button className="settings-row" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}><Moon size={19}/><span>Appearance <small>{theme === 'dark' ? 'Dark mode' : 'Light mode'}</small></span><ArrowUpRight size={17}/></button><button className="settings-row" onClick={() => void exportData()}><Download size={19}/><span>Export your data <small>Download your Daymark data as JSON</small></span><ArrowUpRight size={17}/></button>{!cloudEnabled && <div className="settings-hint">To enable cross-device login, follow the <strong>README.md</strong>, set up Supabase, and redeploy. Demo data won't automatically migrate to your new account.</div>}{cloudEnabled && <button className="settings-row signout" onClick={() => void signOut()}><LogOut size={19}/><span>Sign out <small>End your session on this device</small></span><ArrowUpRight size={17}/></button>}</section></div>}
-    {error && <div className={`toast-error ${update || undoTasks.length ? 'above-update' : ''}`} role="alert"><AlertCircle size={17}/>{error}<button onClick={() => setError('')} aria-label="Dismiss"><X size={16}/></button></div>}
+    {settingsOpen && <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) setSettingsOpen(false) }}>
+      <section className="settings-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+        <div className="settings-header">
+          <div><h2 id="settings-title">Settings</h2></div>
+          <button className="icon-button" onClick={() => setSettingsOpen(false)} aria-label="Close settings"><X size={20}/></button>
+        </div>
+        {errorNotice}
+        <div className="settings-status">
+          <div className="settings-status-icon">{cloudEnabled ? <Cloud size={24}/> : <CloudOff size={24}/>}</div>
+          <div><strong>{cloudEnabled ? 'Cloud sync enabled' : 'Local demo mode'}</strong><p>{cloudEnabled ? `Signed in as ${session?.user.email}. Your content is stored privately in Supabase.` : 'Your content is stored in this browser only. They will NOT sync between devices until you configure Supabase.'}</p></div>
+        </div>
+        <button className="settings-row" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}><Moon size={19}/><span>Appearance <small>{theme === 'dark' ? 'Dark mode' : 'Light mode'}</small></span><ArrowUpRight size={17}/></button>
+        <label className="settings-row settings-toggle">
+          <List size={19}/><span>Next 7 days agenda</span>
+          <input type="checkbox" checked={agendaEnabled} onChange={event => setAgendaEnabled(event.target.checked)}/>
+        </label>
+        <button className="settings-row" onClick={() => void exportData()}><Download size={19}/><span>Export your data <small>Download your Daymark data as JSON</small></span><ArrowUpRight size={17}/></button>
+        {!cloudEnabled && <div className="settings-hint">To enable cross-device login, follow the <strong>README.md</strong>, set up Supabase, and redeploy. Demo data won't automatically migrate to your new account.</div>}
+        {cloudEnabled && <button className="settings-row signout" onClick={() => void signOut()}><LogOut size={19}/><span>Sign out <small>End your session on this device</small></span><ArrowUpRight size={17}/></button>}
+      </section>
+    </div>}
+    {!settingsOpen && errorNotice}
   </div>
 }
 export default App

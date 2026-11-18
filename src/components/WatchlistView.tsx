@@ -12,6 +12,8 @@ type Props = {
 }
 
 const kinds = { movie: 'Movie', show: 'TV show' } as const
+const maxSeason = 999
+const maxEpisode = 9999
 const statuses = { queued: 'Queue', watching: 'Currently watching', in_progress: 'In progress', finished: 'Finished' } as const
 const statusOptions = { ...statuses, watching: 'Watching' } as const
 const filters = { all: 'All', ...statuses } as const
@@ -39,12 +41,14 @@ export function WatchlistView({ active, repository, onPendingChange }: Props) {
   const [kind, setKind] = useState<WatchItem['kind']>('movie')
   const [description, setDescription] = useState('')
   const [descriptionOpen, setDescriptionOpen] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
+  const [season, setSeason] = useState('')
+  const [episode, setEpisode] = useState('')
+  const [editingItem, setEditingItem] = useState<WatchItem | null>(null)
   const [filter, setFilter] = useState<keyof typeof filters>('all')
   const [search, setSearch] = useState('')
   const request = useRef(0)
   const writing = useRef(false)
-  const hasDraft = Boolean(title.trim() || description.trim() || editingId || kind !== 'movie')
+  const hasDraft = Boolean(title.trim() || description.trim() || editingItem || kind !== 'movie')
 
   useEffect(() => onPendingChange(hasDraft || busy), [hasDraft, busy, onPendingChange])
 
@@ -91,7 +95,9 @@ export function WatchlistView({ active, repository, onPendingChange }: Props) {
     setKind('movie')
     setDescription('')
     setDescriptionOpen(false)
-    setEditingId(null)
+    setSeason('')
+    setEpisode('')
+    setEditingItem(null)
     setError('')
   }
 
@@ -100,7 +106,9 @@ export function WatchlistView({ active, repository, onPendingChange }: Props) {
     setKind(item.kind)
     setDescription(item.description)
     setDescriptionOpen(true)
-    setEditingId(item.id)
+    setSeason(item.season == null ? '' : String(item.season))
+    setEpisode(item.episode == null ? '' : String(item.episode))
+    setEditingItem(item)
     setError('')
   }
 
@@ -112,10 +120,20 @@ export function WatchlistView({ active, repository, onPendingChange }: Props) {
     event.preventDefault()
     const input = { title: title.trim(), kind, description: description.trim() }
     if (!input.title) return
+    const progress = {
+      season: kind === 'show' && season !== '' ? Number(season) : null,
+      episode: kind === 'show' && episode !== '' ? Number(episode) : null,
+    }
+    if ((progress.season === null) !== (progress.episode === null)) {
+      setError('Enter both season and episode, or leave both blank.')
+      return
+    }
     void change(async () => {
-      if (editingId) replace(await repository.saveWatchItem(editingId, input))
-      else {
-        const added = await repository.createWatchItem(input)
+      if (editingItem) {
+        const changedProgress = editingItem.kind !== kind || (editingItem.season ?? null) !== progress.season || (editingItem.episode ?? null) !== progress.episode
+        replace(await repository.saveWatchItem(editingItem.id, changedProgress ? { ...input, ...progress } : input))
+      } else {
+        const added = await repository.createWatchItem({ ...input, ...progress })
         setItems(current => [added, ...(current ?? [])])
         if (filter !== 'queued') setFilter('all')
       }
@@ -131,12 +149,26 @@ export function WatchlistView({ active, repository, onPendingChange }: Props) {
     void change(async () => replace(await repository.saveWatchItem(item.id, updates)))
   }
 
+  function advanceEpisode(item: WatchItem) {
+    const { season, episode } = item
+    if (season == null || episode == null || episode >= maxEpisode) return
+    void change(async () => {
+      try {
+        replace(await repository.saveWatchItem(item.id, { episode: episode + 1 }, { season, episode }))
+      } catch (error) {
+        const latest = await repository.getWatchlist().catch(() => null)
+        if (latest) setItems(latest)
+        throw error
+      }
+    })
+  }
+
   function remove(item: WatchItem) {
     if (!window.confirm(`Remove “${item.title}” from your watchlist?`)) return
     void change(async () => {
       await repository.removeWatchItem(item.id)
       setItems(current => current?.filter(existing => existing.id !== item.id) ?? [])
-      if (editingId === item.id) reset()
+      if (editingItem?.id === item.id) reset()
     })
   }
 
@@ -165,13 +197,18 @@ export function WatchlistView({ active, repository, onPendingChange }: Props) {
           <option value="movie">Movie</option>
           <option value="show">TV show</option>
         </select>
-        <button className="button primary" disabled={!title.trim() || busy || !items} aria-label={editingId ? 'Save title' : 'Add title'}>{editingId ? <Check size={18}/> : <Plus size={18}/>}</button>
+        <button className="button primary" disabled={!title.trim() || busy || !items} aria-label={editingItem ? 'Save title' : 'Add title'}>{editingItem ? <Check size={18}/> : <Plus size={18}/>}</button>
         {hasDraft && <button className="icon-button" type="button" disabled={busy} aria-label="Cancel watchlist edit" onClick={reset}><X size={17}/></button>}
       </div>
       <button className="watchlist-description-toggle" type="button" aria-expanded={descriptionOpen} aria-controls="watchlist-description-input" disabled={busy || !items} onClick={() => setDescriptionOpen(current => !current)}>
         <ChevronDown size={14} aria-hidden="true"/> Description
       </button>
       <textarea id="watchlist-description-input" aria-label="Description" className="watchlist-description-input" hidden={!descriptionOpen} rows={2} maxLength={5000} value={description} disabled={busy || !items} onChange={event => setDescription(event.target.value)}/>
+      {kind === 'show' && <fieldset className="watchlist-episode-fields">
+        <legend>Last watched <small>(optional)</small></legend>
+        <label>Season<input type="number" inputMode="numeric" min={0} max={maxSeason} step={1} value={season} disabled={busy || !items} onChange={event => setSeason(event.target.value)}/></label>
+        <label>Episode<input type="number" inputMode="numeric" min={1} max={maxEpisode} step={1} value={episode} disabled={busy || !items} onChange={event => setEpisode(event.target.value)}/></label>
+      </fieldset>}
     </form>
     {loadError && <p className="form-error" role="alert">Could not load your watchlist. <button className="watchlist-retry" onClick={() => void load()}>Retry</button></p>}
     {error && <p className="form-error" role="alert">{error}</p>}
@@ -202,6 +239,10 @@ export function WatchlistView({ active, repository, onPendingChange }: Props) {
             </select>
             <button className="icon-button" disabled={busy || hasDraft} aria-label={`Edit ${item.title}`} onClick={() => edit(item)}><Pencil size={15}/></button>
             <button className="icon-button" disabled={busy} aria-label={`Remove ${item.title}`} onClick={() => remove(item)}><Trash2 size={15}/></button>
+            {item.kind === 'show' && item.season != null && item.episode != null && <div className="watchlist-episode">
+              <span>Last watched <strong>S{String(item.season).padStart(2, '0')} E{String(item.episode).padStart(2, '0')}</strong></span>
+              <button type="button" disabled={busy || hasDraft || item.episode >= maxEpisode} aria-label={`Advance episode for ${item.title}`} onClick={() => advanceEpisode(item)}>+1 episode</button>
+            </div>}
             {item.description && <p className="watchlist-description"><LinkedText text={item.description}/></p>}
           </li>)}
         </ul>

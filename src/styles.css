@@ -294,6 +294,22 @@ h1, h2, h3 { font-family: 'Manrope', 'DM Sans', sans-serif; letter-spacing: -.05
 .calendar-add-event { width: 34px; height: 34px; padding: 0; flex: none; }
 .calendar-controls h2 { margin: 0; font-size: 20px; }
 .calendar-control-buttons { display: flex; gap: 4px; align-items: center; }
+.calendar-tool[aria-pressed="true"], .calendar-tool[aria-expanded="true"] { background: var(--accent-trans); color: var(--accent); }
+.calendar-workspace.calendar-workspace-agenda { grid-template-columns: minmax(0, 1fr); max-width: 720px; margin: 0 auto; }
+.calendar-search, .calendar-upcoming { border-top: 1px solid var(--border); padding: 12px clamp(10px, 3vw, 22px); }
+.calendar-search .search-input { margin: 0; }
+.calendar-search input { font-size: 16px; }
+.calendar-search > p, .calendar-upcoming-range { margin: 8px 0 0; color: var(--muted); font-size: 12px; }
+.calendar-search-results { list-style: none; max-height: 200px; overflow: auto; margin: 8px 0 0; padding: 0; }
+.calendar-search-results li + li { border-top: 1px solid var(--border-soft); }
+.calendar-search-results button { width: 100%; padding: 8px 6px; display: grid; gap: 4px; text-align: left; border-radius: 6px; overflow-wrap: anywhere; }
+.calendar-search-results button:hover, .calendar-upcoming-day h3 button:hover { background: var(--hover); }
+.calendar-search-results strong, .calendar-upcoming-day h3 { font-size: 13px; }
+.calendar-search-results span { font-size: 11px; color: var(--muted); }
+.calendar-upcoming-range { margin: 0 0 12px; }
+.calendar-upcoming-day + .calendar-upcoming-day { margin-top: 14px; }
+.calendar-upcoming-day h3 { margin: 0; }
+.calendar-upcoming-day h3 button { min-height: 32px; padding: 4px 6px; border-radius: 6px; text-align: left; }
 .today-button { border: 1px solid var(--border); padding: 8px 14px; border-radius: 8px; font-weight: 700; font-size: 11px; margin-right: 7px; }
 .today-button:hover { background: var(--hover); }
 .calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-top: 1px solid var(--border); }
@@ -378,12 +394,15 @@ h1, h2, h3 { font-family: 'Manrope', 'DM Sans', sans-serif; letter-spacing: -.05
 .form-success { background: rgba(127,216,189,.1); color: var(--mint); border-color: rgba(127,216,189,.35); }
 .toast-error { position: fixed; z-index: 200; right: 25px; bottom: 25px; max-width: min(450px, calc(100vw - 30px)); border: 1px solid rgba(228,100,100,.3); background: #412a33; color: #ffe3e3; box-shadow: var(--shadow); padding: 14px 13px; border-radius: 11px; display: flex; align-items: center; gap: 11px; font-size: 12px; }
 .toast-error button { margin-left: auto; }
+.toast-error.settings-error { position: static; max-width: none; margin-bottom: 14px; box-shadow: none; overflow-wrap: anywhere; }
 .settings-dialog { padding: 29px; }
 .settings-header { display: flex; justify-content: space-between; margin-bottom: 23px; }
 .settings-status { background: var(--accent-trans); border: 1px solid var(--accent-border); border-radius: 12px; padding: 20px; display: flex; gap: 14px; margin-bottom: 15px; }
 .settings-status-icon { color: var(--accent); }
 .settings-status strong { font-size: 13px; }.settings-status p { color: var(--muted); font-size: 11px; line-height: 1.6; margin: 8px 0 0; }
 .settings-row { width: 100%; display: flex; align-items: center; text-align: left; gap: 15px; border-bottom: 1px solid var(--border-soft); padding: 17px 8px; }
+.settings-toggle { cursor: pointer; }
+.settings-toggle input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
 .settings-row:hover { background: var(--hover); }.settings-row > svg:first-child { color: var(--accent); }.settings-row > span { flex: 1; display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 750; }.settings-row small { color: var(--muted); font-size: 10px; font-weight: 400; }.settings-row > svg:last-child { color: var(--faint); }.settings-row.signout { color: #f29b9b; }.settings-row.signout > svg:first-child { color: #f29b9b; }
 .settings-hint { margin-top: 20px; color: var(--muted); font-size: 11px; line-height: 1.7; padding: 15px; border: 1px dashed var(--border); border-radius: 11px; }
 
@@ -544,6 +563,11 @@ h1, h2, h3 { font-family: 'Manrope', 'DM Sans', sans-serif; letter-spacing: -.05
   .notes-layout { height: calc(100dvh - 56px); }
   .toast-error { bottom: 14px; }
 }
+@media (max-width: 350px) {
+  .calendar-controls { padding-inline: 6px; gap: 4px; }
+  .calendar-control-buttons .icon-button { width: 28px; }
+  .calendar-control-buttons .today-button { padding-inline: 6px; margin-right: 0; }
+}
 
 .repeat-summary { margin: -6px 0 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
 
@@ -643,6 +667,16 @@ h1, h2, h3 { font-family: 'Manrope', 'DM Sans', sans-serif; letter-spacing: -.05
 .watchlist-description-toggle { display: flex; align-items: center; gap: 4px; min-height: 32px; padding: 0 4px; margin-top: 2px; color: var(--muted); font-size: 12px; }
 .watchlist-description-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
 .watchlist-description-input { width: 100%; min-height: 44px; resize: vertical; padding: 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--input); font-size: 16px; }
+.watchlist-episode-fields { display: flex; gap: 8px; border: 0; margin: 6px 0 0; padding: 0; }
+.watchlist-episode-fields legend { margin-bottom: 5px; padding: 0; font-size: 12px; }
+.watchlist-episode-fields small { color: var(--muted); }
+.watchlist-episode-fields label { min-width: 0; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.watchlist-episode-fields input { width: 66px; height: 34px; flex: none; }
+.watchlist-episode { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
+.watchlist-episode strong { color: var(--text); }
+.watchlist-episode button { padding: 4px 8px; min-height: 32px; border-radius: 6px; background: var(--input); border: 1px solid var(--border); }
+.watchlist-episode button:hover:not(:disabled) { background: var(--hover); }
+.watchlist-episode button:disabled { opacity: .5; }
 .watchlist-search { margin: 0 0 8px; }
 .watchlist-search input { font-size: 16px; }
 .watchlist-filters { flex-wrap: wrap; gap: 4px; }

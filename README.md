@@ -9,9 +9,11 @@ A calm, responsive personal notes-and-calendar app. Made with React, TypeScript,
 - Clone events 1–10 weeks ahead as independent events, preserving times, colors, descriptions and linked notes
 - 🔗 Link notes to events and jump between them
 - Calendar opens by default, with direct navigation to notes, to-do list, weather, watchlist and settings
+- Optional seven-day agenda and event search across months
 - Add, edit, complete, reopen and delete private tasks with optional descriptions and due dates; filter Open, All or Done
 - Optional weekly task refresh at a chosen weekday and time, including while the app is closed
 - Track movies and TV shows with Queue, Currently watching, In progress, and Finished filters and finish dates
+- Record the last watched season and episode for TV shows
 - Helsinki, Otaniemi, and Inkoo weather with a compact 12-hour forecast and a Finnish Meteorological Institute rain radar link
 - 🌓 Light and dark themes; mobile navigation and responsive layouts
 - ☁️ Optional email/password accounts, Supabase-backed storage and cross-device sync
@@ -96,7 +98,9 @@ Titles marked **Watching** get a **Watching** tag and appear in **Currently watc
 
 Open **Description** while adding or editing a title to save notes or links. Each entry also has an **IMDb** link that searches IMDb for the current title. The description stays in Daymark when following the IMDb link.
 
-The watchlist syncs through your private account and refreshes when you open the tab, return to the app, or reconnect. Demo mode saves entries in this browser. Watchlist entries are included in JSON backups. Fresh Supabase installations use `supabase/schema.sql`. Existing projects can apply `private_watchlist`, `watchlist_progress`, `watchlist_description`, and `watchlist_currently_watching` in order as needed.
+For a TV show, enter the last watched season and episode when adding or editing it. **+1 episode** advances the episode within that season. Edit the entry when starting a new season, or clear both fields to remove progress. Status and progress can be updated independently.
+
+The watchlist syncs through your private account and refreshes when you open the tab, return to the app, or reconnect. Demo mode saves entries in this browser. Watchlist entries are included in JSON backups. Fresh Supabase installations use `supabase/schema.sql`. Existing projects can apply the watchlist migrations in order, through `watchlist_episode_tracking`.
 
 ## Links in text
 
@@ -108,7 +112,7 @@ For a named link in a note, select some text, choose **Insert link**, and replac
 
 ## Weather
 
-Open **Weather** and choose **Helsinki**, **Otaniemi**, or **Inkoo** for forecast conditions, temperature in °C, wind in m/s, humidity, and rain/snow amounts in mm. Helsinki is selected when the app starts. The next 12 hours appear at two-hour intervals, with all dates and times shown in **Europe/Helsinki**, independent of the device's timezone. Rain/snow labels state the forecast interval. Open **Sadetutka** for the Finnish Meteorological Institute's rain radar.
+Open **Weather** and choose **Helsinki**, **Otaniemi**, or **Inkoo** for forecast conditions, temperature in °C, wind in m/s, humidity, and rain/snow amounts in mm. Daymark remembers the selected location in this browser and starts with Helsinki on a fresh visit. The next 12 hours appear at two-hour intervals, with all dates and times shown in **Europe/Helsinki**, independent of the device's timezone. Rain/snow labels state the forecast interval. Open **Sadetutka** for the Finnish Meteorological Institute's rain radar.
 
 Forecast data comes from [MET Norway](https://www.met.no/en) under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The public API needs no key. Requests use fixed coordinates for the selected location and omit account credentials and personal app content. The browser identifies the public site via its Origin header. No location permission is requested. Browser HTTP caching respects the provider's cache headers. The view checks for updates every 15 minutes while visible and when returning to it, and has a manual Refresh button.
 
@@ -127,6 +131,12 @@ Refreshes started before local changes, or superseded by a newer refresh, cannot
 `npm run test:security` checks the reported attack patterns in subprocesses with strict timeouts and verifies normal build globs. CI runs this check, the browser suite, and the mocked cloud regressions before deployment. npm audit still reports the upstream dependency advisory because it does not inspect locally patched files. Replace the temporary patch and version override when a verified fixed release is available; the checksum guard stops installation/build if the upstream parser changes unexpectedly.
 
 Supabase's leaked-password protection requires its Pro plan or above. The connected project uses the Free plan, so that advisory remains until the plan is upgraded and the setting is enabled. Row-level ownership policies and anonymous-access restrictions remain enabled.
+
+## Calendar views and search
+
+Calendar opens in month view. Select the list icon for **Next 7 days**, which shows events from today through the following six days. Tap a date heading to open that day's Schedule in the month view. Turn off **Next 7 days agenda** in **Settings** to hide the list icon. The setting is saved in this browser.
+
+Select the search icon to find events by title or description across all months. Choose a result to jump to its date and Schedule.
 
 ## Compact event editor
 

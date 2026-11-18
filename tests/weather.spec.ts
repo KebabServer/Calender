@@ -116,6 +116,12 @@ test('weather locations load and cache separate forecasts', async ({ page }) => 
   expect(helsinkiCalls).toBe(1)
   expect(otaniemiCalls).toBe(2)
   expect(inkooCalls).toBe(1)
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await nav.getByRole('button', { name: 'Weather', exact: true }).click()
+  await expect(inkoo).toHaveAttribute('aria-pressed', 'true')
+  await expect(temperature).toHaveText('7°C')
+  expect(helsinkiCalls).toBe(1)
+  expect(inkooCalls).toBe(2)
 })
 
 test('Helsinki times are independent of the device timezone', async ({ browser }) => {

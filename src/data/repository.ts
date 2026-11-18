@@ -4,6 +4,8 @@ import { weeklyCopies } from '../lib/events'
 import { nextTaskRefresh, refreshDemoTask, taskRefreshDue, TASK_TIMEZONE } from '../lib/task-refresh'
 import { supabase } from '../lib/supabase'
 
+type RecordedEpisode = { season: number; episode: number }
+
 export interface Repository {
   getTasks(): Promise<Task[]>
   createTask(input: TaskInput): Promise<Task>
@@ -12,7 +14,7 @@ export interface Repository {
   restoreTask(task: Task): Promise<Task>
   getWatchlist(signal?: AbortSignal): Promise<WatchItem[]>
   createWatchItem(input: WatchInput): Promise<WatchItem>
-  saveWatchItem(id: string, updates: WatchUpdates): Promise<WatchItem>
+  saveWatchItem(id: string, updates: WatchUpdates, previousEpisode?: RecordedEpisode): Promise<WatchItem>
   removeWatchItem(id: string): Promise<void>
   getNotes(): Promise<Note[]>
   getEvents(): Promise<CalendarEvent[]>
@@ -52,7 +54,7 @@ function readDemo() {
     const raw = localStorage.getItem(DEMO_KEY)
     if (raw) {
       const value = JSON.parse(raw) as ReturnType<typeof demoSeed>
-      return { ...value, watchlist: (value.watchlist ?? []).map(item => ({ ...item, description: item.description ?? '', started: item.started ?? false, currently_watching: item.currently_watching ?? false })), tasks: (value.tasks ?? []).map(task => ({ ...task, description: task.description ?? '', due_date: task.due_date ?? null,
+      return { ...value, watchlist: (value.watchlist ?? []).map(item => ({ ...item, description: item.description ?? '', started: item.started ?? false, currently_watching: item.currently_watching ?? false, season: item.season ?? null, episode: item.episode ?? null })), tasks: (value.tasks ?? []).map(task => ({ ...task, description: task.description ?? '', due_date: task.due_date ?? null,
         refresh_weekday: task.refresh_weekday ?? null, refresh_time: task.refresh_time ?? null,
         refresh_timezone: task.refresh_timezone ?? TASK_TIMEZONE, next_refresh_at: task.next_refresh_at ?? null })) }
     }
@@ -108,10 +110,13 @@ export const demoRepository: Repository = {
     writeDemo(state)
     return item
   },
-  async saveWatchItem(id, updates) {
+  async saveWatchItem(id, updates, previousEpisode) {
     const state = readDemo()
     const current = state.watchlist.find(item => item.id === id)
     if (!current) throw new Error('This title was removed.')
+    if (previousEpisode && (current.kind !== 'show' || current.season !== previousEpisode.season || current.episode !== previousEpisode.episode)) {
+      throw new Error('Episode progress changed. Try again with the latest value.')
+    }
     const saved = { ...current, ...updates }
     state.watchlist = state.watchlist.map(item => item.id === id ? saved : item)
     writeDemo(state)
@@ -185,7 +190,7 @@ export function createCloudRepository(userId: string): Repository {
   if (!supabase) throw new Error('Cloud is not configured')
   const client = supabase
   const taskColumns = 'id,title,description,due_date,refresh_weekday,refresh_time,refresh_timezone,next_refresh_at,completed,created_at,updated_at'
-  const watchColumns = 'id,title,kind,description,started,currently_watching,watched_on,created_at'
+  const watchColumns = 'id,title,kind,description,started,currently_watching,season,episode,watched_on,created_at'
   return {
     async getTasks() {
       const read = () => client.from('tasks').select(taskColumns).eq('user_id', userId).order('created_at', { ascending: false })
@@ -232,10 +237,14 @@ export function createCloudRepository(userId: string): Repository {
       assertNoError(error)
       return data as WatchItem
     },
-    async saveWatchItem(id, updates) {
-      const { data, error } = await client.from('watchlist').update(updates).eq('id', id).eq('user_id', userId).select(watchColumns).maybeSingle()
+    async saveWatchItem(id, updates, previousEpisode) {
+      const query = client.from('watchlist').update(updates).eq('id', id).eq('user_id', userId)
+      if (previousEpisode) query.eq('kind', 'show').eq('season', previousEpisode.season).eq('episode', previousEpisode.episode)
+      const { data, error } = await query.select(watchColumns).maybeSingle()
       assertNoError(error)
-      if (!data) throw new Error('This title was removed on another device.')
+      if (!data) throw new Error(previousEpisode
+        ? 'Episode progress changed on another device. Try again with the latest value.'
+        : 'This title was removed on another device.')
       return data as WatchItem
     },
     async removeWatchItem(id) {

@@ -1,4 +1,4 @@
-import { addWeeks, format, parseISO } from 'date-fns'
+import { addWeeks, differenceInCalendarDays, format, parseISO } from 'date-fns'
 import type { CalendarEvent, EventInput } from '../types'
 
 // Match calendar weekdays, not elapsed milliseconds, so DST never shifts a series.
@@ -7,6 +7,20 @@ export function occursOn(event: CalendarEvent, day: Date): boolean {
   if (event.recurrence !== 'weekly') return event.event_date === date
   return date >= event.event_date && (!event.repeat_until || date <= event.repeat_until)
     && parseISO(event.event_date).getDay() === day.getDay()
+}
+
+export function eventSearchDate(event: CalendarEvent, today: Date): Date {
+  const first = parseISO(event.event_date)
+  if (event.recurrence !== 'weekly' || first >= today) return first
+
+  const weeks = Math.ceil(differenceInCalendarDays(today, first) / 7)
+  const next = addWeeks(first, weeks)
+  if (!event.repeat_until) return next
+
+  const lastDate = parseISO(event.repeat_until)
+  if (next <= lastDate) return next
+  const lastWeek = Math.max(0, Math.floor(differenceInCalendarDays(lastDate, first) / 7))
+  return addWeeks(first, lastWeek)
 }
 
 export function durationMinutes(event: Pick<CalendarEvent, 'start_time' | 'end_time'>): number | null {

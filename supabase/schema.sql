@@ -235,7 +235,13 @@ create table public.watchlist (
   created_at timestamptz not null default now(),
   started boolean not null default false,
   description text not null default '' constraint watchlist_description_length check (char_length(description) <= 5000),
-  currently_watching boolean not null default false
+  currently_watching boolean not null default false,
+  season smallint,
+  episode smallint,
+  constraint watchlist_valid_episode check (
+    (season is null and episode is null)
+    or (season is not null and episode is not null and season between 0 and 999 and episode between 1 and 9999)
+  )
 );
 
 create index watchlist_user_created_idx on public.watchlist (user_id, created_at desc);
