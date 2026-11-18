@@ -7,6 +7,7 @@ import { CalendarView } from './components/CalendarView'
 import { EventDialog } from './components/EventDialog'
 import { TasksView } from './components/TasksView'
 import { WeatherView } from './components/WeatherView'
+import { WatchlistView } from './components/WatchlistView'
 import { NotesView } from './components/NotesView'
 import { UpdateNotice } from './components/UpdateNotice'
 import { updateUrl, useAppUpdate } from './lib/app-updates'
@@ -16,7 +17,7 @@ import { occursOn } from './lib/events'
 import { useNoteAutosave } from './lib/use-note-autosave'
 import { cloudEnabled, supabase } from './lib/supabase'
 import type { WeatherLocation } from './lib/weather'
-import type { CalendarEvent, EventInput, NoteFilter, View, Task, TaskInput, TaskUpdates } from './types'
+import type { CalendarEvent, EventInput, NoteFilter, View, Task, TaskInput, TaskUpdates, WatchItem } from './types'
 
 const formatDay = (date: Date) => format(date, 'yyyy-MM-dd')
 function App() {
@@ -53,6 +54,7 @@ function Workspace({ session, update }: { session: Session | null; update: strin
   const [undoTasks, setUndoTasks] = useState<Task[]>([])
   const [taskBusy, setTaskBusy] = useState(false)
   const [taskDraftDirty, setTaskDraftDirty] = useState(false)
+  const [watchlistPending, setWatchlistPending] = useState(false)
   const taskRevision = useRef(0)
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [selectedNoteId, setSelectedNoteId] = useState<string|null>(null)
@@ -69,10 +71,15 @@ function Workspace({ session, update }: { session: Session | null; update: strin
   const eventRevision = useRef(0)
   const eventOperations = useRef(0)
   const refreshSequence = useRef(0)
+  const backupRequest = useRef<AbortController | null>(null)
   const activeUserId = session?.user.id
   const repository = useMemo(() => activeUserId && supabase ? createCloudRepository(activeUserId) : demoRepository, [activeUserId])
 
   useEffect(() => { document.documentElement.dataset.theme = theme; localStorage.setItem('daymark_theme', theme) }, [theme])
+  useEffect(() => () => {
+    backupRequest.current?.abort()
+    backupRequest.current = null
+  }, [])
   const { notes, revision: noteRevision, mergeRemote: mergeNotes, edit: editNote, create: newNote, remove: removeNote,
     flush: flushNotes, status: noteStatus, saving, hasUnsaved } = useNoteAutosave(repository, setError)
 
@@ -188,14 +195,25 @@ function Workspace({ session, update }: { session: Session | null; update: strin
     } catch (e) { setError(`Could not restore task: ${e instanceof Error ? e.message : String(e)}`) }
     finally { taskRevision.current++; setTaskBusy(false) }
   }
-  function exportData() {
-    const data = JSON.stringify({ exported_at: new Date().toISOString(), notes, events, tasks }, null, 2)
+  async function exportData() {
+    backupRequest.current?.abort()
+    const request = new AbortController()
+    backupRequest.current = request
+    const timeout = window.setTimeout(() => request.abort(), 5000)
+    let watchlist: WatchItem[] | undefined
+    try { watchlist = await repository.getWatchlist(request.signal) }
+    catch { /* Still export local notes, events and tasks. */ }
+    finally { window.clearTimeout(timeout) }
+    if (backupRequest.current !== request) return
+    backupRequest.current = null
+    if (!watchlist) setError('Your backup was created without the watchlist. Check your connection and export again to include it.')
+    const data = JSON.stringify({ exported_at: new Date().toISOString(), notes, events, tasks, watchlist }, null, 2)
     const url = URL.createObjectURL(new Blob([data], { type: 'application/json' }))
     const link = document.createElement('a'); link.href = url; link.download = `daymark-backup-${formatDay(new Date())}.json`; link.click(); URL.revokeObjectURL(url)
   }
   async function signOut() {
     if (updating || signingOut) return
-    if (taskBusy || taskDraftDirty || dialog) { setError('Finish or cancel your edit before signing out.'); return }
+    if (taskBusy || taskDraftDirty || watchlistPending || dialog) { setError('Finish or cancel your edit before signing out.'); return }
     setSigningOut(true)
     try {
       await flushNotes()
@@ -206,7 +224,7 @@ function Workspace({ session, update }: { session: Session | null; update: strin
   }
 
   async function applyUpdate() {
-    if (!update || dialog || updating || signingOut || taskBusy || taskDraftDirty || undoTasks.length) return
+    if (!update || dialog || updating || signingOut || taskBusy || taskDraftDirty || watchlistPending || undoTasks.length) return
     if (!navigator.onLine) { setError('Connect to the internet before updating. Your changes are still here.'); return }
     setUpdating(true)
     try {
@@ -219,26 +237,26 @@ function Workspace({ session, update }: { session: Session | null; update: strin
   }
 
   useEffect(() => {
-    if (update && navigator.onLine && !updating && !signingOut && !undoTasks.length && !loading && !saving && !taskBusy && !taskDraftDirty && !dialog && !settingsOpen && (activeView === 'calendar' || activeView === 'weather')
+    if (update && navigator.onLine && !updating && !signingOut && !undoTasks.length && !loading && !saving && !taskBusy && !taskDraftDirty && !watchlistPending && !dialog && !settingsOpen && (activeView === 'calendar' || activeView === 'weather')
       && !hasUnsaved
       && new URL(window.location.href).searchParams.get('daymark_release') !== update) {
       window.location.replace(updateUrl(update))
     }
-  }, [update, updating, signingOut, hasUnsaved, undoTasks.length, loading, saving, taskBusy, taskDraftDirty, dialog, settingsOpen, activeView])
+  }, [update, updating, signingOut, hasUnsaved, undoTasks.length, loading, saving, taskBusy, taskDraftDirty, watchlistPending, dialog, settingsOpen, activeView])
 
   if (signingOut) return <div className="app-loading" role="status">Saving changes and signing out…</div>
   if (updating) return <div className="app-loading" role="status">Saving changes and updating…</div>
   if (!authReady) return <div className="app-loading"><LoaderCircle className="spin" size={30}/><span>Opening Daymark...</span></div>
   if (cloudEnabled && !session) return <><AuthScreen/>{error && <div className="toast-error"><AlertCircle size={17}/>{error}<button onClick={() => setError('')} aria-label="Dismiss"><X size={16}/></button></div>}</>
   return <div className="app-shell">
-    {update && !undoTasks.length && <UpdateNotice disabled={Boolean(dialog) || taskBusy || taskDraftDirty} onUpdate={() => void applyUpdate()}/>}
+    {update && !undoTasks.length && <UpdateNotice disabled={Boolean(dialog) || taskBusy || taskDraftDirty || watchlistPending} onUpdate={() => void applyUpdate()}/>}
     {undoTasks.length > 0 && <div className="undo-notice" role="status"><span>{undoTasks.length === 1 ? 'Task deleted.' : `${undoTasks.length} tasks deleted.`}</span><button className="button primary" disabled={taskBusy} onClick={() => void undoTaskDeletion()}>Undo</button><button className="icon-button" disabled={taskBusy} aria-label="Dismiss undo" onClick={() => setUndoTasks([])}><X size={16}/></button></div>}
     <Sidebar active={activeView} onNavigate={setActiveView} onOpenSettings={() => setSettingsOpen(true)}/>
     <main className="app-main">
-      {loading ? <div className="content-loading"><LoaderCircle size={27} className="spin"/><span>Loading...</span></div> : <><TasksView active={activeView === 'tasks'} tasks={tasks} busy={taskBusy} onDraftChange={setTaskDraftDirty} onAdd={addTask} onChange={changeTask} onDelete={deleteTask}/>{activeView === 'notes' ? <NotesView notes={notes} selectedId={selectedNoteId} onSelect={setSelectedNoteId} onCreate={() => void createNote()} onEdit={editNote} onDelete={id => void deleteNote(id)} filter={noteFilter} onFilter={setNoteFilter} saveStatus={selectedNoteId ? noteStatus(selectedNoteId) : 'saved'} onRetrySave={() => { setError(''); void flushNotes().catch(() => {}) }}/> : activeView === 'calendar' ? <CalendarView month={month} onMonth={setMonth} selectedDate={selectedDate} onSelectDate={setSelectedDate} events={events} notes={notes} onCreate={() => setDialog({ date: formatDay(selectedDate), event: null })} onOpenEvent={e => setDialog({ date: e.event_date, event: e })} onOpenNote={openNote}/> : activeView === 'weather' ? <WeatherView location={weatherLocation} onLocationChange={setWeatherLocation}/> : null}</>}
+      {loading ? <div className="content-loading"><LoaderCircle size={27} className="spin"/><span>Loading...</span></div> : <><WatchlistView active={activeView === 'watchlist'} repository={repository} onPendingChange={setWatchlistPending}/><TasksView active={activeView === 'tasks'} tasks={tasks} busy={taskBusy} onDraftChange={setTaskDraftDirty} onAdd={addTask} onChange={changeTask} onDelete={deleteTask}/>{activeView === 'notes' ? <NotesView notes={notes} selectedId={selectedNoteId} onSelect={setSelectedNoteId} onCreate={() => void createNote()} onEdit={editNote} onDelete={id => void deleteNote(id)} filter={noteFilter} onFilter={setNoteFilter} saveStatus={selectedNoteId ? noteStatus(selectedNoteId) : 'saved'} onRetrySave={() => { setError(''); void flushNotes().catch(() => {}) }}/> : activeView === 'calendar' ? <CalendarView month={month} onMonth={setMonth} selectedDate={selectedDate} onSelectDate={setSelectedDate} events={events} notes={notes} onCreate={() => setDialog({ date: formatDay(selectedDate), event: null })} onOpenEvent={e => setDialog({ date: e.event_date, event: e })} onOpenNote={openNote}/> : activeView === 'weather' ? <WeatherView location={weatherLocation} onLocationChange={setWeatherLocation}/> : null}</>}
     </main>
     {dialog && <EventDialog key={dialog.event?.id || `new-${dialog.date}`} event={dialog.event} date={dialog.date} notes={notes} onClose={() => setDialog(null)} onSave={saveEvent} onDelete={deleteEvent}/>}
-    {settingsOpen && <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) setSettingsOpen(false) }}><section className="settings-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-title"><div className="settings-header"><div><h2 id="settings-title">Settings</h2></div><button className="icon-button" onClick={() => setSettingsOpen(false)} aria-label="Close settings"><X size={20}/></button></div><div className="settings-status"><div className="settings-status-icon">{cloudEnabled ? <Cloud size={24}/> : <CloudOff size={24}/>}</div><div><strong>{cloudEnabled ? 'Cloud sync enabled' : 'Local demo mode'}</strong><p>{cloudEnabled ? `Signed in as ${session?.user.email}. Your content is stored privately in Supabase.` : 'Notes, events and tasks are stored in this browser only. They will NOT sync between devices until you configure Supabase.'}</p></div></div><button className="settings-row" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}><Moon size={19}/><span>Appearance <small>{theme === 'dark' ? 'Dark mode' : 'Light mode'}</small></span><ArrowUpRight size={17}/></button><button className="settings-row" onClick={exportData}><Download size={19}/><span>Export your data <small>Download notes, events and tasks as JSON</small></span><ArrowUpRight size={17}/></button>{!cloudEnabled && <div className="settings-hint">To enable cross-device login, follow the <strong>README.md</strong>, set up Supabase, and redeploy. Demo data won't automatically migrate to your new account.</div>}{cloudEnabled && <button className="settings-row signout" onClick={() => void signOut()}><LogOut size={19}/><span>Sign out <small>End your session on this device</small></span><ArrowUpRight size={17}/></button>}</section></div>}
+    {settingsOpen && <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) setSettingsOpen(false) }}><section className="settings-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-title"><div className="settings-header"><div><h2 id="settings-title">Settings</h2></div><button className="icon-button" onClick={() => setSettingsOpen(false)} aria-label="Close settings"><X size={20}/></button></div><div className="settings-status"><div className="settings-status-icon">{cloudEnabled ? <Cloud size={24}/> : <CloudOff size={24}/>}</div><div><strong>{cloudEnabled ? 'Cloud sync enabled' : 'Local demo mode'}</strong><p>{cloudEnabled ? `Signed in as ${session?.user.email}. Your content is stored privately in Supabase.` : 'Your content is stored in this browser only. They will NOT sync between devices until you configure Supabase.'}</p></div></div><button className="settings-row" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}><Moon size={19}/><span>Appearance <small>{theme === 'dark' ? 'Dark mode' : 'Light mode'}</small></span><ArrowUpRight size={17}/></button><button className="settings-row" onClick={() => void exportData()}><Download size={19}/><span>Export your data <small>Download your Daymark data as JSON</small></span><ArrowUpRight size={17}/></button>{!cloudEnabled && <div className="settings-hint">To enable cross-device login, follow the <strong>README.md</strong>, set up Supabase, and redeploy. Demo data won't automatically migrate to your new account.</div>}{cloudEnabled && <button className="settings-row signout" onClick={() => void signOut()}><LogOut size={19}/><span>Sign out <small>End your session on this device</small></span><ArrowUpRight size={17}/></button>}</section></div>}
     {error && <div className={`toast-error ${update || undoTasks.length ? 'above-update' : ''}`} role="alert"><AlertCircle size={17}/>{error}<button onClick={() => setError('')} aria-label="Dismiss"><X size={16}/></button></div>}
   </div>
 }

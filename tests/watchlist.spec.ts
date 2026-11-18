@@ -1,0 +1,67 @@
+import { expect, test } from '@playwright/test'
+
+test('watchlist tracks movies and TV shows at 320px and includes them in backups', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 })
+  await page.clock.setFixedTime(new Date('2026-11-18T12:00:00Z'))
+  await page.goto('./', { waitUntil: 'domcontentloaded' })
+  await expect(page.locator('.calendar-controls h2')).toBeVisible()
+  const nav = page.getByRole('navigation', { name: 'Main navigation' })
+  for (const name of ['Calendar', 'Notes', 'To-do', 'Weather', 'Watchlist']) {
+    await expect(nav.getByRole('button', { name, exact: true })).toBeInViewport({ ratio: 1 })
+  }
+  const settings = page.getByRole('button', { name: 'Settings', exact: true })
+  await expect(settings).toBeInViewport({ ratio: 1 })
+  await nav.getByRole('button', { name: 'Watchlist' }).click()
+  await expect(page.getByRole('heading', { name: 'Watchlist' })).toBeVisible()
+  await expect(page.getByText('No titles yet.')).toBeVisible()
+  const title = page.getByRole('textbox', { name: 'Title', exact: true })
+  const type = page.getByRole('combobox', { name: 'Type', exact: true })
+  await title.fill('Arrival')
+  await page.getByRole('button', { name: 'Add title' }).click()
+  await title.fill('Severance')
+  await type.selectOption('show')
+  await nav.getByRole('button', { name: 'Calendar' }).click()
+  await nav.getByRole('button', { name: 'Watchlist' }).click()
+  await expect(title).toHaveValue('Severance')
+  await expect(type).toHaveValue('show')
+  await page.getByRole('button', { name: 'Add title' }).click()
+  const movie = page.getByRole('listitem').filter({ hasText: 'Arrival' })
+  const show = page.getByRole('listitem').filter({ hasText: 'Severance' })
+  await expect(movie).toContainText('Movie')
+  await expect(show).toContainText('TV show')
+  await movie.getByRole('checkbox').check()
+  await expect(movie.locator('time')).toHaveAttribute('datetime', '2026-11-18')
+  await page.getByRole('button', { name: 'Watched', exact: true }).click()
+  await expect(show).toHaveCount(0)
+  await expect(movie).toBeVisible()
+  await page.getByRole('button', { name: 'To watch', exact: true }).click()
+  await expect(movie).toHaveCount(0)
+  await page.getByRole('button', { name: 'Edit Severance' }).click()
+  await title.fill('Severance (2022)')
+  await page.getByRole('button', { name: 'Save title' }).click()
+  await expect(show).toContainText('Severance (2022)')
+  expect(await page.locator('main').evaluate(el => el.scrollWidth <= el.clientWidth)).toBeTruthy()
+
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await settings.click()
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: /Export your data/ }).click(),
+  ])
+  const stream = await download.createReadStream()
+  const chunks: Buffer[] = []
+  for await (const chunk of stream) chunks.push(chunk)
+  const backup = JSON.parse(Buffer.concat(chunks).toString('utf8'))
+  expect(backup.watchlist).toEqual(expect.arrayContaining([
+    expect.objectContaining({ title: 'Arrival', kind: 'movie', watched_on: '2026-11-18' }),
+    expect.objectContaining({ title: 'Severance (2022)', kind: 'show', watched_on: null }),
+  ]))
+  await page.getByRole('button', { name: 'Close settings' }).click()
+  await nav.getByRole('button', { name: 'Watchlist' }).click()
+  await expect(movie.getByRole('checkbox')).toBeChecked()
+  await movie.getByRole('checkbox').uncheck()
+  await expect(movie.locator('time')).toHaveCount(0)
+  page.once('dialog', dialog => dialog.accept())
+  await show.getByRole('button', { name: 'Remove Severance (2022)' }).click()
+  await expect(show).toHaveCount(0)
+})

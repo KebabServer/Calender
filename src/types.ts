@@ -40,6 +40,16 @@ export type Task = {
 export type TaskInput = Pick<Task, 'title' | 'description' | 'due_date' | 'refresh_weekday' | 'refresh_time' | 'refresh_timezone'>
 export type TaskUpdates = Partial<TaskInput & Pick<Task, 'completed'>>
 
-export type View = 'notes' | 'calendar' | 'tasks' | 'weather'
+export type WatchItem = {
+  id: string
+  title: string
+  kind: 'movie' | 'show'
+  watched_on: string | null
+  created_at: string
+}
+export type WatchInput = Pick<WatchItem, 'title' | 'kind'>
+export type WatchUpdates = Partial<WatchInput & Pick<WatchItem, 'watched_on'>>
+
+export type View = 'notes' | 'calendar' | 'tasks' | 'weather' | 'watchlist'
 export type NoteFilter = 'all' | 'pinned'
 export type EventInput = Omit<CalendarEvent, 'id' | 'created_at' | 'updated_at'>

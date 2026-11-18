@@ -8,13 +8,14 @@ A calm, responsive personal notes-and-calendar app. Made with React, TypeScript,
 - 📅 Monthly calendar with create/edit/delete events, priorities, all-day events, and start times and durations in calendar cells
 - Clone events 1–10 weeks ahead as independent events, preserving times, colors, descriptions and linked notes
 - 🔗 Link notes to events and jump between them
-- Calendar opens by default, with direct navigation to notes, to-do list, weather and settings
+- Calendar opens by default, with direct navigation to notes, to-do list, weather, watchlist and settings
 - Add, edit, complete, reopen and delete private tasks with optional descriptions and due dates; filter Open, All or Done
 - Optional weekly task refresh at a chosen weekday and time, including while the app is closed
+- Track movies and TV shows, filter watched titles, and see the date each title was marked watched
 - Helsinki, Otaniemi, and Inkoo weather with a compact 12-hour forecast and a Finnish Meteorological Institute rain radar link
 - 🌓 Light and dark themes; mobile navigation and responsive layouts
 - ☁️ Optional email/password accounts, Supabase-backed storage and cross-device sync
-- 💾 Download a JSON backup of notes, events and tasks
+- 💾 Download a JSON backup of notes, events, tasks, and watchlist entries
 - 🚀 GitHub Pages deployment workflow included
 
 **Not yet included:** push notifications, single-occurrence exceptions, multi-day events, simultaneous editing conflict resolution, server-side account recovery UI, importing JSON backups, full offline cloud editing, or PWA installation. Events represent a single date and wall-clock time; no timezone conversion is performed.
@@ -86,6 +87,12 @@ Cloud refreshes run through one private Supabase Cron worker every minute, so th
 Existing projects can apply `supabase/migrations/20261118085901_weekly_task_refresh.sql` once. It enables `pg_cron` and installs the schedule fields, trigger and one-minute job; the connected production project is already upgraded. Fresh installations use the updated full schema/task scripts. Local demo mode catches up while the app is open or on next load; it has no background server.
 
 Fresh Supabase installations use `supabase/schema.sql`. Existing projects can run `supabase/tasks.sql` once; the connected production project is already upgraded.
+
+## Watchlist
+
+Open **Watchlist**, enter a title, choose **Movie** or **TV show**, and select **+**. Mark it watched to record today's date, or uncheck it to move it back to **To watch**. Use **All**, **To watch**, and **Watched** to filter the list. Use the pencil to edit a title or its type, or the bin to remove it.
+
+The watchlist syncs through your private account and refreshes when you open the tab, return to the app, or reconnect. Demo mode saves entries in this browser. Watchlist entries are included in JSON backups. Fresh Supabase installations use `supabase/schema.sql`. Existing projects can apply the `private_watchlist` migration once.
 
 ## Links in text
 

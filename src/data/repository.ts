@@ -1,5 +1,5 @@
 import { format, addDays, subDays, addHours } from 'date-fns'
-import type { CalendarEvent, EventInput, Note, Task, TaskInput, TaskUpdates } from '../types'
+import type { CalendarEvent, EventInput, Note, Task, TaskInput, TaskUpdates, WatchItem, WatchInput, WatchUpdates } from '../types'
 import { weeklyCopies } from '../lib/events'
 import { nextTaskRefresh, refreshDemoTask, taskRefreshDue, TASK_TIMEZONE } from '../lib/task-refresh'
 import { supabase } from '../lib/supabase'
@@ -10,6 +10,10 @@ export interface Repository {
   saveTask(id: string, updates: TaskUpdates): Promise<Task>
   removeTask(id: string): Promise<void>
   restoreTask(task: Task): Promise<Task>
+  getWatchlist(signal?: AbortSignal): Promise<WatchItem[]>
+  createWatchItem(input: WatchInput): Promise<WatchItem>
+  saveWatchItem(id: string, updates: WatchUpdates): Promise<WatchItem>
+  removeWatchItem(id: string): Promise<void>
   getNotes(): Promise<Note[]>
   getEvents(): Promise<CalendarEvent[]>
   createNote(): Promise<Note>
@@ -21,13 +25,14 @@ export interface Repository {
   removeEvent(id: string): Promise<void>
 }
 
-function demoSeed(): { notes: Note[]; events: CalendarEvent[]; tasks: Task[] } {
+function demoSeed(): { notes: Note[]; events: CalendarEvent[]; tasks: Task[]; watchlist: WatchItem[] } {
   const now = new Date()
   const stamp = now.toISOString()
   const d = (offset: number) => format(addDays(now, offset), 'yyyy-MM-dd')
   const time = (hours: number) => format(addHours(now, hours), 'HH:mm')
   return {
     tasks: [],
+    watchlist: [],
     notes: [
       { id: 'demo-note-1', title: 'A little space to think', content: '## Welcome to Daymark ✨\n\nYour thoughts deserve a calm place to land. Capture ideas, keep plans close, and make space for the important things.\n\n- [x] Explore your notes\n- [ ] Add a new note\n- [ ] Plan something on your calendar\n\n**Tip:** Your demo notes live in this browser. Connect Supabase when you are ready to sync devices.', pinned: true, created_at: stamp, updated_at: stamp },
       { id: 'demo-note-2', title: 'Ideas worth keeping', content: '## Small sparks\n\n- A weekend photo walk\n- Build a morning reading habit\n- Try a new recipe on Sunday\n\n> Good ideas grow when you write them down.', pinned: false, created_at: subDays(now, 2).toISOString(), updated_at: subDays(now, 1).toISOString() },
@@ -47,7 +52,7 @@ function readDemo() {
     const raw = localStorage.getItem(DEMO_KEY)
     if (raw) {
       const value = JSON.parse(raw) as ReturnType<typeof demoSeed>
-      return { ...value, tasks: (value.tasks ?? []).map(task => ({ ...task, description: task.description ?? '', due_date: task.due_date ?? null,
+      return { ...value, watchlist: value.watchlist ?? [], tasks: (value.tasks ?? []).map(task => ({ ...task, description: task.description ?? '', due_date: task.due_date ?? null,
         refresh_weekday: task.refresh_weekday ?? null, refresh_time: task.refresh_time ?? null,
         refresh_timezone: task.refresh_timezone ?? TASK_TIMEZONE, next_refresh_at: task.next_refresh_at ?? null })) }
     }
@@ -94,6 +99,28 @@ export const demoRepository: Repository = {
   },
   async removeTask(id) {
     const state = readDemo(); state.tasks = state.tasks.filter(t => t.id !== id); writeDemo(state)
+  },
+  async getWatchlist() { return readDemo().watchlist },
+  async createWatchItem(input) {
+    const state = readDemo()
+    const item: WatchItem = { ...input, id: crypto.randomUUID(), watched_on: null, created_at: new Date().toISOString() }
+    state.watchlist.unshift(item)
+    writeDemo(state)
+    return item
+  },
+  async saveWatchItem(id, updates) {
+    const state = readDemo()
+    const current = state.watchlist.find(item => item.id === id)
+    if (!current) throw new Error('This title was removed.')
+    const saved = { ...current, ...updates }
+    state.watchlist = state.watchlist.map(item => item.id === id ? saved : item)
+    writeDemo(state)
+    return saved
+  },
+  async removeWatchItem(id) {
+    const state = readDemo()
+    state.watchlist = state.watchlist.filter(item => item.id !== id)
+    writeDemo(state)
   },
   async getNotes() { return readDemo().notes },
   async getEvents() { return readDemo().events },
@@ -158,6 +185,7 @@ export function createCloudRepository(userId: string): Repository {
   if (!supabase) throw new Error('Cloud is not configured')
   const client = supabase
   const taskColumns = 'id,title,description,due_date,refresh_weekday,refresh_time,refresh_timezone,next_refresh_at,completed,created_at,updated_at'
+  const watchColumns = 'id,title,kind,watched_on,created_at'
   return {
     async getTasks() {
       const read = () => client.from('tasks').select(taskColumns).eq('user_id', userId).order('created_at', { ascending: false })
@@ -191,6 +219,27 @@ export function createCloudRepository(userId: string): Repository {
     },
     async removeTask(id) {
       const { error } = await client.from('tasks').delete().eq('id', id).eq('user_id', userId)
+      assertNoError(error)
+    },
+    async getWatchlist(signal) {
+      const query = client.from('watchlist').select(watchColumns).eq('user_id', userId).order('created_at', { ascending: false })
+      const { data, error } = await (signal ? query.abortSignal(signal) : query)
+      assertNoError(error)
+      return (data || []) as WatchItem[]
+    },
+    async createWatchItem(input) {
+      const { data, error } = await client.from('watchlist').insert({ ...input, user_id: userId }).select(watchColumns).single()
+      assertNoError(error)
+      return data as WatchItem
+    },
+    async saveWatchItem(id, updates) {
+      const { data, error } = await client.from('watchlist').update(updates).eq('id', id).eq('user_id', userId).select(watchColumns).maybeSingle()
+      assertNoError(error)
+      if (!data) throw new Error('This title was removed on another device.')
+      return data as WatchItem
+    },
+    async removeWatchItem(id) {
+      const { error } = await client.from('watchlist').delete().eq('id', id).eq('user_id', userId)
       assertNoError(error)
     },
     async getNotes() {

@@ -596,7 +596,7 @@ h1, h2, h3 { font-family: 'Manrope', 'DM Sans', sans-serif; letter-spacing: -.05
 }
 
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
-.tasks-view { width: 100%; max-width: 720px; margin: 0 auto; padding: 24px; }
+.tasks-view, .watchlist-view { width: 100%; max-width: 720px; margin: 0 auto; padding: 24px; }
 .tasks-heading { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 16px; }
 .tasks-heading h1 { margin: 0; font-size: 24px; }
 .tasks-heading > span { color: var(--muted); font-size: 12px; }
@@ -616,12 +616,12 @@ h1, h2, h3 { font-family: 'Manrope', 'DM Sans', sans-serif; letter-spacing: -.05
 .task-field textarea { resize: vertical; }
 .task-field input::-webkit-date-and-time-value { text-align: left; }
 .task-clear-date { display: inline-flex; padding: 0 2px; color: var(--muted); }
-.task-filters { display: flex; gap: 6px; margin-bottom: 12px; }
-.task-filters button { min-height: 32px; padding: 6px 12px; border-radius: 7px; color: var(--muted); font-size: 12px; }
-.task-filters button[aria-pressed="true"] { background: var(--accent-trans); color: var(--text); }
-.task-list { list-style: none; padding: 0; margin: 0; }
-.task-row { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 8px 0; border-bottom: 1px solid var(--border-soft); }
-.task-row > input { width: 18px; height: 18px; margin: 0; flex: none; accent-color: var(--accent); }
+.task-filters, .watchlist-filters { display: flex; gap: 6px; margin-bottom: 12px; }
+.task-filters button, .watchlist-filters button { min-height: 32px; padding: 6px 12px; border-radius: 7px; color: var(--muted); font-size: 12px; }
+.task-filters button[aria-pressed="true"], .watchlist-filters button[aria-pressed="true"] { background: var(--accent-trans); color: var(--text); }
+.task-list, .watchlist-items { list-style: none; padding: 0; margin: 0; }
+.task-row, .watchlist-row { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 8px 0; border-bottom: 1px solid var(--border-soft); }
+.task-row > input, .watchlist-row > input { width: 18px; height: 18px; margin: 0; flex: none; accent-color: var(--accent); }
 .task-content { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .task-title { display: block; line-height: 1.5; }
 .task-description { margin: 3px 0; color: var(--muted); font-size: 12px; line-height: 1.4; white-space: pre-wrap; }
@@ -629,9 +629,19 @@ h1, h2, h3 { font-family: 'Manrope', 'DM Sans', sans-serif; letter-spacing: -.05
 .task-overdue { color: var(--peach); }
 .task-completed .task-description, .task-completed .task-due { color: var(--faint); }
 .task-completed .task-title { color: var(--muted); text-decoration: line-through; }
-.task-row .icon-button { width: 30px; height: 34px; }
-.tasks-empty { padding: 24px 0; color: var(--muted); font-size: 13px; }
-@media (max-width: 700px) { .tasks-view { padding: 18px 12px; } }
+.task-row .icon-button, .watchlist-row .icon-button { width: 30px; height: 34px; }
+.tasks-empty, .watchlist-empty { padding: 24px 0; color: var(--muted); font-size: 13px; }
+@media (max-width: 700px) { .tasks-view, .watchlist-view { padding: 18px 12px; } }
+
+.watchlist-view h1 { margin: 0 0 16px; font-size: 24px; }
+.watchlist-compose { display: flex; align-items: center; gap: 6px; margin-bottom: 14px; }
+.watchlist-compose input, .watchlist-compose select { min-width: 0; height: 42px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--input); font-size: 16px; }
+.watchlist-compose input { width: 0; flex: 1; }
+.watchlist-compose > .button { width: 39px; height: 42px; flex: none; padding: 0; }
+.watchlist-compose .icon-button { width: 32px; height: 42px; }
+.watchlist-entry { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.watchlist-entry > span { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; }
+.watchlist-retry { text-decoration: underline; }
 
 .task-completed .icon-button { color: var(--faint); }
 .task-completed > input { opacity: .65; }
@@ -685,8 +695,7 @@ h1, h2, h3 { font-family: 'Manrope', 'DM Sans', sans-serif; letter-spacing: -.05
 .weather-error p { margin: 0 0 8px; line-height: 1.5; }
 .weather-error .button { min-height: 32px; padding: 6px 10px; font-size: 12px; }
 @media (max-width: 700px) { .weather-view { padding: 18px 12px; } }
-@media (max-width: 380px) {
+@media (max-width: 500px) {
   .workspace-header { padding: 0 8px; gap: 4px; }
-  .workspace-tabs button { padding: 9px 5px; gap: 3px; font-size: 11px; }
-  .workspace-tabs button svg { width: 14px; height: 14px; }
+  .workspace-tabs button { flex: 1; min-width: 0; min-height: 44px; justify-content: center; flex-direction: column; padding: 4px 1px; gap: 2px; font-size: 10px; }
 }

@@ -24,7 +24,7 @@ async function setup() {
   }
   await page.route('https://tktgencmwtanxjfkiadc.supabase.co/**', async route => {
     const req = route.request(), url = new URL(req.url()), path = url.pathname
-    if (path.includes('/rest/v1/tasks')) return route.fulfill({json:[]})
+    if (path === '/rest/v1/tasks' || path === '/rest/v1/watchlist') return route.fulfill({json:[]})
     if (path.includes('/rest/v1/notes') || path.includes('/rest/v1/events')) {
       assert.equal(url.searchParams.get('user_id'), `eq.${id}`)
       const isNote = path.endsWith('/notes'), record = isNote ? state.note : state.event
