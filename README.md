@@ -109,6 +109,8 @@ The owner's previous open-ended weekly series was explicitly converted to the or
 
 ## Home Screen updates
 
+The browser and iPhone Home Screen use a calendar icon. iOS receives an opaque 180×180 PNG through `apple-touch-icon`. Existing Home Screen shortcuts may retain their old icon; remove the old shortcut and add the freshly loaded site again from Safari using **Share → Add to Home Screen**.
+
 Production builds publish a `version.json` release marker. Daymark checks it with a unique URL and `no-store` on startup, focus, return from the background, restored pages, and while open. An idle calendar loads a newly published release using a fresh URL. The URL includes a release marker to prevent refresh loops during CDN propagation.
 
 If a note or event is being edited, the app waits. **Update now** saves pending/failed note edits before refreshing; a failed save keeps the draft and pauses the update. Finish or cancel an event form first. Refreshing does not clear website data or the Supabase sign-in session. Offline or invalid version checks leave the current app usable.
