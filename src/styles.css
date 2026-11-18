@@ -621,7 +621,7 @@ h1, h2, h3 { font-family: 'Manrope', 'DM Sans', sans-serif; letter-spacing: -.05
 .task-filters button[aria-pressed="true"], .watchlist-filters button[aria-pressed="true"] { background: var(--accent-trans); color: var(--text); }
 .task-list, .watchlist-items { list-style: none; padding: 0; margin: 0; }
 .task-row, .watchlist-row { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 8px 0; border-bottom: 1px solid var(--border-soft); }
-.task-row > input, .watchlist-row > input { width: 18px; height: 18px; margin: 0; flex: none; accent-color: var(--accent); }
+.task-row > input { width: 18px; height: 18px; margin: 0; flex: none; accent-color: var(--accent); }
 .task-content { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .task-title { display: block; line-height: 1.5; }
 .task-description { margin: 3px 0; color: var(--muted); font-size: 12px; line-height: 1.4; white-space: pre-wrap; }
@@ -641,6 +641,8 @@ h1, h2, h3 { font-family: 'Manrope', 'DM Sans', sans-serif; letter-spacing: -.05
 .watchlist-compose .icon-button { width: 32px; height: 42px; }
 .watchlist-entry { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .watchlist-entry > span { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; }
+.watchlist-row { gap: 6px; }
+.watchlist-status { height: 34px; width: 108px; flex: none; padding: 4px 5px; border: 1px solid var(--border); border-radius: 7px; background: var(--input); font-size: 13px; }
 .watchlist-retry { text-decoration: underline; }
 
 .task-completed .icon-button { color: var(--faint); }

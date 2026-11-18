@@ -232,7 +232,8 @@ create table public.watchlist (
   title text not null check (char_length(title) <= 200 and title ~ '[^[:space:]]'),
   kind text not null check (kind in ('movie', 'show')),
   watched_on date check (watched_on between date '0001-01-01' and date '9999-12-31'),
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  started boolean not null default false
 );
 
 create index watchlist_user_created_idx on public.watchlist (user_id, created_at desc);

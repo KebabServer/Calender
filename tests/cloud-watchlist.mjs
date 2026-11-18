@@ -25,19 +25,25 @@ try {
       const input = request.postDataJSON()
       assert.equal(input.user_id, userId)
       if (failWrite) return route.fulfill({ status: 503, json: { message: 'Could not save title. Try again.' } })
-      const entry = { ...input, id: 'mock-watch-item', watched_on: null, created_at: new Date().toISOString() }
+      const entry = { ...input, id: 'mock-watch-item', started: false, watched_on: null, created_at: new Date().toISOString() }
       entries.push(entry)
       return route.fulfill({ json: entry })
     }
     assert.equal(url.searchParams.get('user_id'), `eq.${userId}`)
     if (method === 'GET') {
+      assert.ok(url.searchParams.get('select')?.split(',').includes('started'))
       if (failRead) return route.fulfill({ status: 403, json: { message: 'Watchlist unavailable' } })
       return route.fulfill({ json: entries })
     }
     assert.equal(url.searchParams.get('id'), 'eq.mock-watch-item')
     if (method === 'PATCH') {
-      assert.deepEqual(Object.keys(request.postDataJSON()), ['watched_on'])
-      Object.assign(entries[0], request.postDataJSON())
+      const changes = request.postDataJSON()
+      if (changes.watched_on === null) assert.deepEqual(changes, { started: true, watched_on: null })
+      else {
+        assert.deepEqual(Object.keys(changes), ['watched_on'])
+        assert.match(changes.watched_on, /^\d{4}-\d{2}-\d{2}$/)
+      }
+      Object.assign(entries[0], changes)
       return route.fulfill({ json: entries })
     }
     assert.equal(method, 'DELETE')
@@ -61,13 +67,18 @@ try {
   await expect(title).toHaveValue('Example show')
   failWrite = false
   await add.click()
-  await page.getByRole('checkbox', { name: 'Mark Example show watched' }).click()
-  await expect(page.getByRole('checkbox', { name: 'Mark Example show unwatched' })).toBeChecked()
+  const status = page.getByRole('combobox', { name: 'Status for Example show' })
+  await status.selectOption({ label: 'In progress' })
+  await expect(status).toHaveValue('in_progress')
+  assert.equal(entries[0].started, true)
+  assert.equal(entries[0].watched_on, null)
+  await status.selectOption({ label: 'Finished' })
+  await expect(status).toHaveValue('finished')
   assert.match(entries[0].watched_on, /^\d{4}-\d{2}-\d{2}$/)
 
   entries[0].title = 'Renamed on another device'
   await page.evaluate(() => window.dispatchEvent(new Event('focus')))
-  await expect(page.getByRole('checkbox', { name: 'Mark Renamed on another device unwatched' })).toBeChecked()
+  await expect(page.getByRole('combobox', { name: 'Status for Renamed on another device' })).toHaveValue('finished')
   page.once('dialog', dialog => dialog.accept())
   await page.getByRole('button', { name: 'Remove Renamed on another device' }).click()
   await expect(page.getByText('No titles yet.')).toBeVisible()

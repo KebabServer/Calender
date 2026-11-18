@@ -11,7 +11,20 @@ type Props = {
 }
 
 const kinds = { movie: 'Movie', show: 'TV show' } as const
-const filters = { all: 'All', planned: 'To watch', watched: 'Watched' } as const
+const statuses = { queued: 'Queue', in_progress: 'In progress', finished: 'Finished' } as const
+const filters = { all: 'All', ...statuses } as const
+const emptyMessages = {
+  all: 'No titles yet.',
+  queued: 'Your queue is empty.',
+  in_progress: 'Nothing in progress.',
+  finished: 'No finished titles yet.',
+}
+type Status = keyof typeof statuses
+
+function statusOf(item: WatchItem): Status {
+  if (item.watched_on) return 'finished'
+  return item.started ? 'in_progress' : 'queued'
+}
 
 export function WatchlistView({ active, repository, onPendingChange }: Props) {
   const [items, setItems] = useState<WatchItem[] | null>(null)
@@ -86,15 +99,18 @@ export function WatchlistView({ active, repository, onPendingChange }: Props) {
       else {
         const added = await repository.createWatchItem(input)
         setItems(current => [added, ...(current ?? [])])
-        if (filter === 'watched') setFilter('all')
+        if (filter !== 'queued') setFilter('all')
       }
       reset()
     })
   }
 
-  function toggle(item: WatchItem) {
-    const watched_on = item.watched_on ? null : format(new Date(), 'yyyy-MM-dd')
-    void change(async () => replace(await repository.saveWatchItem(item.id, { watched_on })))
+  function changeStatus(item: WatchItem, status: Status) {
+    if (statusOf(item) === status) return
+    const updates = status === 'finished'
+      ? { watched_on: format(new Date(), 'yyyy-MM-dd') }
+      : { started: status === 'in_progress', watched_on: null }
+    void change(async () => replace(await repository.saveWatchItem(item.id, updates)))
   }
 
   function remove(item: WatchItem) {
@@ -107,7 +123,7 @@ export function WatchlistView({ active, repository, onPendingChange }: Props) {
   }
 
   if (!active) return null
-  const visible = items?.filter(item => filter === 'all' || Boolean(item.watched_on) === (filter === 'watched')) ?? []
+  const visible = items?.filter(item => filter === 'all' || statusOf(item) === filter) ?? []
 
   return <section className="watchlist-view" aria-labelledby="watchlist-title">
     <h1 id="watchlist-title">Watchlist</h1>
@@ -130,15 +146,17 @@ export function WatchlistView({ active, repository, onPendingChange }: Props) {
         {(Object.keys(filters) as (keyof typeof filters)[]).map(value => <button key={value} aria-pressed={filter === value} onClick={() => setFilter(value)}>{filters[value]}</button>)}
       </div>
       <ul className="watchlist-items">{visible.map(item => <li className="watchlist-row" key={item.id}>
-        <input type="checkbox" checked={Boolean(item.watched_on)} disabled={busy} aria-label={`Mark ${item.title} ${item.watched_on ? 'unwatched' : 'watched'}`} onChange={() => toggle(item)}/>
         <div className="watchlist-entry">
           <strong>{item.title}</strong>
-          <span>{kinds[item.kind]}{item.watched_on && <> · Watched <time dateTime={item.watched_on}>{format(parseISO(item.watched_on), 'd MMM yyyy')}</time></>}</span>
+          <span>{kinds[item.kind]}{item.watched_on && <> · <time dateTime={item.watched_on}>{format(parseISO(item.watched_on), 'd MMM yyyy')}</time></>}</span>
         </div>
+        <select className="watchlist-status" value={statusOf(item)} disabled={busy} aria-label={`Status for ${item.title}`} onChange={event => changeStatus(item, event.target.value as Status)}>
+          {Object.entries(statuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+        </select>
         <button className="icon-button" disabled={busy || hasDraft} aria-label={`Edit ${item.title}`} onClick={() => { setTitle(item.title); setKind(item.kind); setEditingId(item.id); setError('') }}><Pencil size={15}/></button>
         <button className="icon-button" disabled={busy} aria-label={`Remove ${item.title}`} onClick={() => remove(item)}><Trash2 size={15}/></button>
       </li>)}</ul>
-      {!visible.length && <p className="watchlist-empty">{filter === 'all' ? 'No titles yet.' : filter === 'watched' ? 'Nothing watched yet.' : 'Nothing to watch yet.'}</p>}
+      {!visible.length && <p className="watchlist-empty">{emptyMessages[filter]}</p>}
     </>}
   </section>
 }

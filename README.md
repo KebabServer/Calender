@@ -11,7 +11,7 @@ A calm, responsive personal notes-and-calendar app. Made with React, TypeScript,
 - Calendar opens by default, with direct navigation to notes, to-do list, weather, watchlist and settings
 - Add, edit, complete, reopen and delete private tasks with optional descriptions and due dates; filter Open, All or Done
 - Optional weekly task refresh at a chosen weekday and time, including while the app is closed
-- Track movies and TV shows, filter watched titles, and see the date each title was marked watched
+- Track movies and TV shows with Queue, In progress, and Finished filters and finish dates
 - Helsinki, Otaniemi, and Inkoo weather with a compact 12-hour forecast and a Finnish Meteorological Institute rain radar link
 - 🌓 Light and dark themes; mobile navigation and responsive layouts
 - ☁️ Optional email/password accounts, Supabase-backed storage and cross-device sync
@@ -90,9 +90,9 @@ Fresh Supabase installations use `supabase/schema.sql`. Existing projects can ru
 
 ## Watchlist
 
-Open **Watchlist**, enter a title, choose **Movie** or **TV show**, and select **+**. Mark it watched to record today's date, or uncheck it to move it back to **To watch**. Use **All**, **To watch**, and **Watched** to filter the list. Use the pencil to edit a title or its type, or the bin to remove it.
+Open **Watchlist**, enter a title, choose **Movie** or **TV show**, and select **+** to add it to **Queue**. Use the status menu beside a title to switch to **In progress** or **Finished**. Choosing **Finished** records today's date. Use **All** or one of the status filters to browse the list. Use the pencil to edit a title or its type, or the bin to remove it.
 
-The watchlist syncs through your private account and refreshes when you open the tab, return to the app, or reconnect. Demo mode saves entries in this browser. Watchlist entries are included in JSON backups. Fresh Supabase installations use `supabase/schema.sql`. Existing projects can apply the `private_watchlist` migration once.
+The watchlist syncs through your private account and refreshes when you open the tab, return to the app, or reconnect. Demo mode saves entries in this browser. Watchlist entries are included in JSON backups. Fresh Supabase installations use `supabase/schema.sql`. Existing projects can apply the `watchlist_progress` migration after `private_watchlist`.
 
 ## Links in text
 
