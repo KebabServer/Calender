@@ -3,6 +3,7 @@ import { CalendarDays, Check, Pencil, Plus, RefreshCw, Trash2, X } from 'lucide-
 import { format, isValid, parseISO } from 'date-fns'
 import type { Task, TaskInput, TaskUpdates } from '../types'
 import { nextTaskRefresh, refreshDays, TASK_TIMEZONE } from '../lib/task-refresh'
+import { LinkedText } from './TextLinks'
 
 type Props = {
   active: boolean
@@ -79,7 +80,7 @@ export function TasksView({ active, tasks, busy, onDraftChange, onAdd, onChange,
     </div>
     <ul className="task-list">{visible.map(task => <li key={task.id} className={`task-row ${task.completed ? 'task-completed' : ''}`}>
       <input type="checkbox" checked={task.completed} disabled={busy} aria-label={`${task.completed ? 'Reopen' : 'Complete'} ${task.title}`} onChange={() => void change(task)}/>
-      <div className="task-content"><span className="task-title">{task.title}</span>{task.description && <p className="task-description">{task.description}</p>}{task.due_date && <time className={`task-due ${!task.completed && task.due_date < today ? 'task-overdue' : ''}`} dateTime={task.due_date}><CalendarDays size={12}/>{!task.completed && task.due_date < today ? 'Overdue · ' : 'Due '}{format(parseISO(task.due_date), 'd MMM yyyy')}</time>}{task.refresh_weekday != null && task.refresh_time && <span className="task-refresh"><RefreshCw size={12}/>Refresh: {refreshDays[task.refresh_weekday - 1]} {task.refresh_time.slice(0, 5)} · Helsinki</span>}</div>
+      <div className="task-content"><span className="task-title">{task.title}</span>{task.description && <p className="task-description"><LinkedText text={task.description}/></p>}{task.due_date && <time className={`task-due ${!task.completed && task.due_date < today ? 'task-overdue' : ''}`} dateTime={task.due_date}><CalendarDays size={12}/>{!task.completed && task.due_date < today ? 'Overdue · ' : 'Due '}{format(parseISO(task.due_date), 'd MMM yyyy')}</time>}{task.refresh_weekday != null && task.refresh_time && <span className="task-refresh"><RefreshCw size={12}/>Refresh: {refreshDays[task.refresh_weekday - 1]} {task.refresh_time.slice(0, 5)} · Helsinki</span>}</div>
       <button className="icon-button" disabled={busy || hasDraft} aria-label={`Edit ${task.title}`} onClick={() => { setDraft(task.title); setDescription(task.description ?? ''); setDueDate(task.due_date ?? ''); setWeekly(task.refresh_weekday != null); setWeekday(task.refresh_weekday ?? 1); setRefreshTime(task.refresh_time?.slice(0, 5) ?? '17:45'); setEditingId(task.id); setError('') }}><Pencil size={15}/></button>
       <button className="icon-button" disabled={busy} aria-label={`Delete ${task.title}`} onClick={() => void remove(task)}><Trash2 size={15}/></button>
     </li>)}</ul>

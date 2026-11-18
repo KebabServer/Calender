@@ -87,6 +87,12 @@ Existing projects can apply `supabase/migrations/20261118085901_weekly_task_refr
 
 Fresh Supabase installations use `supabase/schema.sql`. Existing projects can run `supabase/tasks.sql` once; the connected production project is already upgraded.
 
+## Links in text
+
+Paste an `https://`, `http://`, or `www.` address in a note, event description, or task description. Open **Preview** in Notes, look under the event in the calendar's **Schedule**, or use the saved task in **To-do** to follow the link. Web links open separately so you can keep your place in Daymark.
+
+For a named link in a note, select some text, choose **Insert link**, and replace the selected address placeholder. You can also type Markdown such as `[Project page](https://example.com)`.
+
 ## Weather
 
 Open **Weather** and choose **Helsinki**, **Otaniemi**, or **Inkoo** for forecast conditions, temperature in °C, wind in m/s, humidity, and rain/snow amounts in mm. Helsinki is selected when the app starts. The next 12 hours appear at two-hour intervals, with all dates and times shown in **Europe/Helsinki**, independent of the device's timezone. Rain/snow labels state the forecast interval. Open **Sadetutka** for the Finnish Meteorological Institute's rain radar.

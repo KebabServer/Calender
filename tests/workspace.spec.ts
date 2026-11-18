@@ -11,6 +11,60 @@ test('Markdown does not execute HTML or javascript links', async ({ page }) => {
   await expect(page.locator('.markdown-preview script, .markdown-preview [onerror], .markdown-preview a[href^="javascript:"]')).toHaveCount(0)
 })
 
+test('notes, event descriptions and task descriptions have usable web links on mobile', async ({ page, context }) => {
+  await page.setViewportSize({ width: 320, height: 568 })
+  await context.route('https://example.com/**', route => route.fulfill({ body: 'Example page' }))
+  await page.goto('./', { waitUntil: 'domcontentloaded' })
+  const navigation = page.getByRole('navigation', { name: 'Main navigation' })
+  const address = 'https://example.com/docs_(draft)?id=4&view=full'
+
+  await navigation.getByRole('button', { name: 'Notes', exact: true }).click()
+  await page.getByRole('button', { name: 'Create note', exact: true }).click()
+  const note = page.getByRole('textbox', { name: 'Note content' })
+  await note.fill(`Project page\n\n${address}`)
+  await note.evaluate((element: HTMLTextAreaElement) => element.setSelectionRange(0, 'Project page'.length))
+  await page.getByRole('button', { name: 'Insert link' }).click()
+  await expect.poll(() => note.evaluate((element: HTMLTextAreaElement) => element.value.slice(element.selectionStart, element.selectionEnd))).toBe('https://')
+  await page.keyboard.insertText('https://example.com/project')
+  await page.getByTitle('Preview formatted note').click()
+  const noteLink = page.getByRole('link', { name: 'Project page', exact: true })
+  await expect(noteLink).toHaveAttribute('href', 'https://example.com/project')
+  await expect(noteLink).toHaveAttribute('target', '_blank')
+  await expect(page.getByRole('link', { name: address, exact: true })).toHaveAttribute('href', address)
+
+  await navigation.getByRole('button', { name: 'Calendar', exact: true }).click()
+  await page.getByRole('button', { name: 'Add event', exact: true }).click()
+  await page.getByLabel('Event title').fill('Planning')
+  await page.getByText('More details', { exact: true }).click()
+  const eventDescription = `Read (${address}), then discuss.\nBring *notes*.`
+  await page.getByLabel('Description').fill(eventDescription)
+  await page.getByRole('button', { name: 'Create event', exact: true }).click()
+  const agendaDescription = page.locator('.day-event-description').filter({ hasText: 'then discuss' })
+  await expect(agendaDescription).toHaveText(eventDescription)
+  const agendaLink = agendaDescription.getByRole('link', { name: address, exact: true })
+  await expect(agendaLink).toHaveAttribute('rel', 'noopener noreferrer')
+  const [popup] = await Promise.all([page.waitForEvent('popup'), agendaLink.click()])
+  await expect(popup).toHaveURL(address)
+  await popup.close()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await page.getByRole('button', { name: /^Planning/ }).click()
+  await page.getByText('More details', { exact: true }).click()
+  await expect(page.getByLabel('Description')).toHaveValue(eventDescription)
+  await page.getByRole('button', { name: 'Cancel' }).click()
+
+  await navigation.getByRole('button', { name: 'To-do', exact: true }).click()
+  await page.getByLabel('Task title').fill('Collect references')
+  const taskDescription = `See www.example.com/tasks.\nKeep <b>this</b> and javascript:void(0) as text.`
+  await page.getByLabel('Description', { exact: true }).fill(taskDescription)
+  await page.getByRole('button', { name: 'Add task' }).click()
+  const savedDescription = page.locator('.task-description')
+  await expect(savedDescription).toHaveText(taskDescription)
+  await expect(savedDescription.getByRole('link')).toHaveCount(1)
+  await expect(savedDescription.getByRole('link', { name: 'www.example.com/tasks' })).toHaveAttribute('href', 'https://www.example.com/tasks')
+  await expect(savedDescription.locator('b')).toHaveCount(0)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy()
+})
+
 for (const width of [320, 390, 768, 1440]) {
   test(`notes and calendar at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: width == 320 ? 568 : width <= 390 ? 667 : 900 })
