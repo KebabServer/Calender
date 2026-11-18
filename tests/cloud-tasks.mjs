@@ -14,6 +14,10 @@ try {
  await page.route('https://tktgencmwtanxjfkiadc.supabase.co/**',async r=>{
   const url=new URL(r.request().url()),method=r.request().method()
   if(url.pathname.includes('/rest/v1/tasks')) {
+   if(method!=='DELETE'){
+    const selected=url.searchParams.get('select')?.split(',')||[]
+    assert.ok(selected.includes('description')&&selected.includes('due_date'))
+   }
    if(method==='POST') {
     if(fail)return r.fulfill({status:503,json:{message:'Temporary save failure'}})
     const input=r.request().postDataJSON();assert.equal(input.user_id,id)
@@ -39,14 +43,29 @@ try {
  await page.goto(process.env.DAYMARK_BASE_URL||'http://127.0.0.1:4173/Calender/',{waitUntil:'domcontentloaded'})
  await page.getByRole('navigation').getByRole('button',{name:'To-do',exact:true}).click()
  await page.getByLabel('Task title').fill('Private synced task')
+ await page.getByLabel('Description',{exact:true}).fill('Private description\nSecond line')
+ await page.getByLabel('Due date',{exact:true}).fill('2027-02-03')
  await page.getByRole('button',{name:'Add task',exact:true}).click()
  await page.getByRole('alert').filter({hasText:'Temporary save failure'}).waitFor()
  assert.equal(await page.getByLabel('Task title').inputValue(),'Private synced task')
+ assert.equal(await page.getByLabel('Description',{exact:true}).inputValue(),'Private description\nSecond line')
+ assert.equal(await page.getByLabel('Due date',{exact:true}).inputValue(),'2027-02-03')
  fail=false
  await page.getByRole('button',{name:'Add task',exact:true}).click()
  await page.getByRole('checkbox',{name:'Complete Private synced task',exact:true}).waitFor()
+ assert.equal(tasks[0].description,'Private description\nSecond line')
+ assert.equal(tasks[0].due_date,'2027-02-03')
  await page.reload({waitUntil:'domcontentloaded'})
  await page.getByRole('navigation').getByRole('button',{name:'To-do',exact:true}).click()
+ await page.getByRole('button',{name:'Edit Private synced task',exact:true}).click()
+ assert.equal(await page.getByLabel('Description',{exact:true}).inputValue(),'Private description\nSecond line')
+ assert.equal(await page.getByLabel('Due date',{exact:true}).inputValue(),'2027-02-03')
+ await page.getByLabel('Description',{exact:true}).fill('Edited private description')
+ await page.getByLabel('Due date',{exact:true}).fill('2027-02-04')
+ await page.getByRole('button',{name:'Save task',exact:true}).click()
+ await page.locator('.task-description').filter({hasText:'Edited private description'}).waitFor()
+ assert.equal(tasks[0].description,'Edited private description')
+ assert.equal(tasks[0].due_date,'2027-02-04')
  await page.getByRole('checkbox',{name:'Complete Private synced task',exact:true}).click()
  await page.locator('.task-completed').waitFor()
  await page.getByRole('button',{name:'Done',exact:true}).click()
@@ -63,7 +82,7 @@ try {
  failRestore=false
  await page.getByRole('button',{name:'Undo',exact:true}).click()
  await page.getByRole('checkbox',{name:'Reopen Private synced task',exact:true}).waitFor()
- for(const field of ['id','title','completed','created_at'])assert.equal(tasks[0][field],original[field])
+ for(const field of ['id','title','description','due_date','completed','created_at'])assert.equal(tasks[0][field],original[field])
  assert.ok(await page.getByRole('checkbox',{name:'Reopen Private synced task',exact:true}).isChecked())
  await page.getByRole('button',{name:'Delete Private synced task',exact:true}).click()
  concurrentRestore=true
@@ -71,5 +90,13 @@ try {
  await page.getByRole('checkbox',{name:'Reopen Edited on another device',exact:true}).waitFor()
  assert.equal(tasks[0].title,'Edited on another device')
  assert.equal(tasks[0].id,original.id)
- console.log('PASS: private task CRUD, visible completion, owner-scoped Undo, retry after failure, original identity/status, and concurrent restore without overwriting remote edits')
+ await page.getByRole('button',{name:'Edit Edited on another device',exact:true}).click()
+ await page.getByLabel('Description',{exact:true}).fill('')
+ await page.getByRole('button',{name:'Clear due date',exact:true}).click()
+ await page.getByRole('button',{name:'Save task',exact:true}).click()
+ await page.locator('.task-description').waitFor({state:'detached'})
+ await page.locator('.task-due').waitFor({state:'detached'})
+ assert.equal(tasks[0].description,'')
+ assert.equal(tasks[0].due_date,null)
+ console.log('PASS: private task CRUD/details/due dates, visible completion, owner-scoped Undo, retry after failure, original identity/status/details, clearing optional fields, and concurrent restore without overwriting remote edits')
 }finally{await browser.close()}

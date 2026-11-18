@@ -1,12 +1,12 @@
 import { format, addDays, subDays, addHours } from 'date-fns'
-import type { CalendarEvent, EventInput, Note, Task } from '../types'
+import type { CalendarEvent, EventInput, Note, Task, TaskInput, TaskUpdates } from '../types'
 import { weeklyCopies } from '../lib/events'
 import { supabase } from '../lib/supabase'
 
 export interface Repository {
   getTasks(): Promise<Task[]>
-  createTask(title: string): Promise<Task>
-  saveTask(id: string, updates: Partial<Pick<Task, 'title' | 'completed'>>): Promise<Task>
+  createTask(input: TaskInput): Promise<Task>
+  saveTask(id: string, updates: TaskUpdates): Promise<Task>
   removeTask(id: string): Promise<void>
   restoreTask(task: Task): Promise<Task>
   getNotes(): Promise<Note[]>
@@ -46,7 +46,7 @@ function readDemo() {
     const raw = localStorage.getItem(DEMO_KEY)
     if (raw) {
       const value = JSON.parse(raw) as ReturnType<typeof demoSeed>
-      return { ...value, tasks: value.tasks ?? [] }
+      return { ...value, tasks: (value.tasks ?? []).map(task => ({ ...task, description: task.description ?? '', due_date: task.due_date ?? null })) }
     }
   } catch { /* If storage is unavailable, seed fresh data */ }
   const value = demoSeed()
@@ -59,10 +59,10 @@ function writeDemo(value: ReturnType<typeof demoSeed>) {
 
 export const demoRepository: Repository = {
   async getTasks() { return readDemo().tasks },
-  async createTask(title) {
+  async createTask(input) {
     const state = readDemo()
     const now = new Date().toISOString()
-    const task: Task = { id: crypto.randomUUID(), title, completed: false, created_at: now, updated_at: now }
+    const task: Task = { ...input, id: crypto.randomUUID(), completed: false, created_at: now, updated_at: now }
     state.tasks.unshift(task); writeDemo(state); return task
   },
   async saveTask(id, updates) {
@@ -144,25 +144,26 @@ function assertNoError(error: { message: string } | null) {
 export function createCloudRepository(userId: string): Repository {
   if (!supabase) throw new Error('Cloud is not configured')
   const client = supabase
+  const taskColumns = 'id,title,description,due_date,completed,created_at,updated_at'
   return {
     async getTasks() {
-      const { data, error } = await client.from('tasks').select('id,title,completed,created_at,updated_at').eq('user_id', userId).order('created_at', { ascending: false })
+      const { data, error } = await client.from('tasks').select(taskColumns).eq('user_id', userId).order('created_at', { ascending: false })
       assertNoError(error); return (data || []) as Task[]
     },
-    async createTask(title) {
-      const { data, error } = await client.from('tasks').insert({ user_id: userId, title, completed: false }).select('id,title,completed,created_at,updated_at').single()
+    async createTask(input) {
+      const { data, error } = await client.from('tasks').insert({ ...input, user_id: userId, completed: false }).select(taskColumns).single()
       assertNoError(error); return data as Task
     },
     async saveTask(id, updates) {
-      const { data, error } = await client.from('tasks').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id).eq('user_id', userId).select('id,title,completed,created_at,updated_at').single()
+      const { data, error } = await client.from('tasks').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id).eq('user_id', userId).select(taskColumns).single()
       assertNoError(error); return data as Task
     },
     async restoreTask(task) {
       // Ignore an existing ID: another device may have already restored/edited it.
-      const { data, error } = await client.from('tasks').upsert({ id: task.id, user_id: userId, title: task.title, completed: task.completed, created_at: task.created_at, updated_at: new Date().toISOString() }, { onConflict: 'id', ignoreDuplicates: true }).select('id,title,completed,created_at,updated_at')
+      const { data, error } = await client.from('tasks').upsert({ id: task.id, user_id: userId, title: task.title, description: task.description, due_date: task.due_date, completed: task.completed, created_at: task.created_at, updated_at: new Date().toISOString() }, { onConflict: 'id', ignoreDuplicates: true }).select(taskColumns)
       assertNoError(error)
       if (data?.[0]) return data[0] as Task
-      const { data: existing, error: readError } = await client.from('tasks').select('id,title,completed,created_at,updated_at').eq('id', task.id).eq('user_id', userId).single()
+      const { data: existing, error: readError } = await client.from('tasks').select(taskColumns).eq('id', task.id).eq('user_id', userId).single()
       assertNoError(readError); return existing as Task
     },
     async removeTask(id) {

@@ -595,15 +595,28 @@ h1, h2, h3 { font-family: 'Manrope', 'DM Sans', sans-serif; letter-spacing: -.05
 .tasks-heading { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 16px; }
 .tasks-heading h1 { margin: 0; font-size: 24px; }
 .tasks-heading > span { color: var(--muted); font-size: 12px; }
-.task-compose { display: flex; gap: 8px; align-items: center; margin-bottom: 14px; }
-.task-compose input { width: 0; flex: 1; min-width: 0; border: 1px solid var(--border); border-radius: 8px; background: var(--input); color: var(--text); padding: 10px 12px; font-size: 16px; }
+.task-compose { margin-bottom: 14px; }
+.task-compose-main { display: flex; gap: 8px; align-items: center; }
+.task-compose-main > input { width: 0; flex: 1; min-width: 0; border: 1px solid var(--border); border-radius: 8px; background: var(--input); color: var(--text); padding: 10px 12px; font-size: 16px; }
+.task-compose-details { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 160px); gap: 8px; margin-top: 8px; }
+.task-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; color: var(--muted); font-size: 12px; }
+.task-field-heading { display: flex; justify-content: space-between; align-items: center; height: 17px; }
+.task-field input, .task-field textarea { display: block; width: 100%; min-width: 0; max-width: 100%; min-height: 42px; padding: 9px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--input); color: var(--text); font-size: 16px; }
+.task-field textarea { resize: vertical; }
+.task-field input::-webkit-date-and-time-value { text-align: left; }
+.task-clear-date { display: inline-flex; padding: 0 2px; color: var(--muted); }
 .task-filters { display: flex; gap: 6px; margin-bottom: 12px; }
 .task-filters button { min-height: 32px; padding: 6px 12px; border-radius: 7px; color: var(--muted); font-size: 12px; }
 .task-filters button[aria-pressed="true"] { background: var(--accent-trans); color: var(--text); }
 .task-list { list-style: none; padding: 0; margin: 0; }
 .task-row { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 8px 0; border-bottom: 1px solid var(--border-soft); }
 .task-row > input { width: 18px; height: 18px; margin: 0; flex: none; accent-color: var(--accent); }
-.task-title { flex: 1; min-width: 0; overflow-wrap: anywhere; line-height: 1.5; }
+.task-content { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.task-title { display: block; line-height: 1.5; }
+.task-description { margin: 3px 0; color: var(--muted); font-size: 12px; line-height: 1.4; white-space: pre-wrap; }
+.task-due { display: flex; align-items: center; gap: 4px; margin-top: 4px; color: var(--muted); font-size: 11px; }
+.task-overdue { color: var(--peach); }
+.task-completed .task-description, .task-completed .task-due { color: var(--faint); }
 .task-completed .task-title { color: var(--muted); text-decoration: line-through; }
 .task-row .icon-button { width: 30px; height: 34px; }
 .tasks-empty { padding: 24px 0; color: var(--muted); font-size: 13px; }

@@ -9,7 +9,7 @@ A calm, responsive personal notes-and-calendar app. Made with React, TypeScript,
 - Clone events 1–10 weeks ahead as independent events, preserving times, colors, descriptions and linked notes
 - 🔗 Link notes to events and jump between them
 - Calendar opens by default, with direct navigation to notes, to-do list and settings
-- Add, edit, complete, reopen and delete private tasks; filter Open, All or Done
+- Add, edit, complete, reopen and delete private tasks with optional descriptions and due dates; filter Open, All or Done
 - 🌓 Light and dark themes; mobile navigation and responsive layouts
 - ☁️ Optional email/password accounts, Supabase-backed storage and cross-device sync
 - 💾 Download a JSON backup of notes, events and tasks
@@ -68,6 +68,10 @@ The app uses no client-side routes, so it works without server redirects. Supaba
 ## To-do list
 
 Open **To-do**, type a task and tap **+** (or press Enter). Use the checkbox to complete or reopen a task, the pencil to edit it, or the bin to delete it. **All** is the default view: completed tasks stay below open tasks with muted, crossed-out text. Deletions show **Undo** for 10 seconds; it restores the original task and completion status. When deleting several tasks, Undo restores the most recent deletion first. Undo remains available when switching tabs, but ends on reload or sign-out. Tasks sync to your account through Supabase, and each user can access only their own tasks. Drafts remain when switching tabs; save or cancel a draft before updating or signing out. Tasks are included in JSON backups.
+
+**Description** and **Due date** are optional when adding or editing a task. They appear below its title and survive completion, reloads, and deletion Undo. Open tasks with a past due date are marked overdue. Due dates are calendar dates and do not shift between timezones. Use the small **×** beside Due date to remove it, or clear the description and save.
+
+Existing projects with the tasks table can run `supabase/migrations/20261118010802_add_task_details.sql` once to add these fields. The connected production project is already upgraded; fresh installations use the updated `supabase/schema.sql` or `supabase/tasks.sql`. This migration keeps existing tasks and ownership policies intact.
 
 Fresh Supabase installations use `supabase/schema.sql`. Existing projects can run `supabase/tasks.sql` once; the connected production project is already upgraded.
 

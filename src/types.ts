@@ -26,10 +26,15 @@ export type CalendarEvent = {
 export type Task = {
   id: string
   title: string
+  description: string
+  due_date: string | null // Calendar date, YYYY-MM-DD; no timezone conversion.
   completed: boolean
   created_at: string
   updated_at: string
 }
+
+export type TaskInput = Pick<Task, 'title' | 'description' | 'due_date'>
+export type TaskUpdates = Partial<TaskInput & Pick<Task, 'completed'>>
 
 export type View = 'notes' | 'calendar' | 'tasks'
 export type NoteFilter = 'all' | 'pinned'
