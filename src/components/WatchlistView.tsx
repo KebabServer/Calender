@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Check, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { ArrowUpRight, Check, ChevronDown, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import type { Repository } from '../data/repository'
 import type { WatchItem } from '../types'
+import { LinkedText, WebLink } from './TextLinks'
 
 type Props = {
   active: boolean
@@ -33,11 +34,13 @@ export function WatchlistView({ active, repository, onPendingChange }: Props) {
   const [busy, setBusy] = useState(false)
   const [title, setTitle] = useState('')
   const [kind, setKind] = useState<WatchItem['kind']>('movie')
+  const [description, setDescription] = useState('')
+  const [descriptionOpen, setDescriptionOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [filter, setFilter] = useState<keyof typeof filters>('all')
   const request = useRef(0)
   const writing = useRef(false)
-  const hasDraft = Boolean(title.trim() || editingId || kind !== 'movie')
+  const hasDraft = Boolean(title.trim() || description.trim() || editingId || kind !== 'movie')
 
   useEffect(() => onPendingChange(hasDraft || busy), [hasDraft, busy, onPendingChange])
 
@@ -82,7 +85,18 @@ export function WatchlistView({ active, repository, onPendingChange }: Props) {
   function reset() {
     setTitle('')
     setKind('movie')
+    setDescription('')
+    setDescriptionOpen(false)
     setEditingId(null)
+    setError('')
+  }
+
+  function edit(item: WatchItem) {
+    setTitle(item.title)
+    setKind(item.kind)
+    setDescription(item.description)
+    setDescriptionOpen(true)
+    setEditingId(item.id)
     setError('')
   }
 
@@ -92,7 +106,7 @@ export function WatchlistView({ active, repository, onPendingChange }: Props) {
 
   function submit(event: React.FormEvent) {
     event.preventDefault()
-    const input = { title: title.trim(), kind }
+    const input = { title: title.trim(), kind, description: description.trim() }
     if (!input.title) return
     void change(async () => {
       if (editingId) replace(await repository.saveWatchItem(editingId, input))
@@ -128,15 +142,21 @@ export function WatchlistView({ active, repository, onPendingChange }: Props) {
   return <section className="watchlist-view" aria-labelledby="watchlist-title">
     <h1 id="watchlist-title">Watchlist</h1>
     <form className="watchlist-compose" onSubmit={submit}>
-      <label className="sr-only" htmlFor="watchlist-title-input">Title</label>
-      <input id="watchlist-title-input" placeholder="Add a title…" value={title} maxLength={200} disabled={busy || !items} onChange={event => setTitle(event.target.value)}/>
-      <label className="sr-only" htmlFor="watchlist-kind">Type</label>
-      <select id="watchlist-kind" value={kind} disabled={busy || !items} onChange={event => setKind(event.target.value === 'show' ? 'show' : 'movie')}>
-        <option value="movie">Movie</option>
-        <option value="show">TV show</option>
-      </select>
-      <button className="button primary" disabled={!title.trim() || busy || !items} aria-label={editingId ? 'Save title' : 'Add title'}>{editingId ? <Check size={18}/> : <Plus size={18}/>}</button>
-      {hasDraft && <button className="icon-button" type="button" disabled={busy} aria-label="Cancel watchlist edit" onClick={reset}><X size={17}/></button>}
+      <div className="watchlist-compose-main">
+        <label className="sr-only" htmlFor="watchlist-title-input">Title</label>
+        <input id="watchlist-title-input" placeholder="Add a title…" value={title} maxLength={200} disabled={busy || !items} onChange={event => setTitle(event.target.value)}/>
+        <label className="sr-only" htmlFor="watchlist-kind">Type</label>
+        <select id="watchlist-kind" value={kind} disabled={busy || !items} onChange={event => setKind(event.target.value === 'show' ? 'show' : 'movie')}>
+          <option value="movie">Movie</option>
+          <option value="show">TV show</option>
+        </select>
+        <button className="button primary" disabled={!title.trim() || busy || !items} aria-label={editingId ? 'Save title' : 'Add title'}>{editingId ? <Check size={18}/> : <Plus size={18}/>}</button>
+        {hasDraft && <button className="icon-button" type="button" disabled={busy} aria-label="Cancel watchlist edit" onClick={reset}><X size={17}/></button>}
+      </div>
+      <button className="watchlist-description-toggle" type="button" aria-expanded={descriptionOpen} aria-controls="watchlist-description-input" disabled={busy || !items} onClick={() => setDescriptionOpen(current => !current)}>
+        <ChevronDown size={14} aria-hidden="true"/> Description
+      </button>
+      <textarea id="watchlist-description-input" aria-label="Description" className="watchlist-description-input" hidden={!descriptionOpen} rows={2} maxLength={5000} value={description} disabled={busy || !items} onChange={event => setDescription(event.target.value)}/>
     </form>
     {loadError && <p className="form-error" role="alert">Could not load your watchlist. <button className="watchlist-retry" onClick={() => void load()}>Retry</button></p>}
     {error && <p className="form-error" role="alert">{error}</p>}
@@ -148,13 +168,16 @@ export function WatchlistView({ active, repository, onPendingChange }: Props) {
       <ul className="watchlist-items">{visible.map(item => <li className="watchlist-row" key={item.id}>
         <div className="watchlist-entry">
           <strong>{item.title}</strong>
-          <span>{kinds[item.kind]}{item.watched_on && <> · <time dateTime={item.watched_on}>{format(parseISO(item.watched_on), 'd MMM yyyy')}</time></>}</span>
+          <span>{kinds[item.kind]} · <WebLink className="watchlist-imdb" href={`https://www.imdb.com/find/?${new URLSearchParams({ q: item.title, s: 'tt' })}`} aria-label={`Search IMDb for ${item.title}`}>
+            IMDb <ArrowUpRight size={12} aria-hidden="true"/>
+          </WebLink>{item.watched_on && <> · <time dateTime={item.watched_on}>{format(parseISO(item.watched_on), 'd MMM yyyy')}</time></>}</span>
         </div>
         <select className="watchlist-status" value={statusOf(item)} disabled={busy} aria-label={`Status for ${item.title}`} onChange={event => changeStatus(item, event.target.value as Status)}>
           {Object.entries(statuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </select>
-        <button className="icon-button" disabled={busy || hasDraft} aria-label={`Edit ${item.title}`} onClick={() => { setTitle(item.title); setKind(item.kind); setEditingId(item.id); setError('') }}><Pencil size={15}/></button>
+        <button className="icon-button" disabled={busy || hasDraft} aria-label={`Edit ${item.title}`} onClick={() => edit(item)}><Pencil size={15}/></button>
         <button className="icon-button" disabled={busy} aria-label={`Remove ${item.title}`} onClick={() => remove(item)}><Trash2 size={15}/></button>
+        {item.description && <p className="watchlist-description"><LinkedText text={item.description}/></p>}
       </li>)}</ul>
       {!visible.length && <p className="watchlist-empty">{emptyMessages[filter]}</p>}
     </>}

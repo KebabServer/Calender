@@ -92,7 +92,9 @@ Fresh Supabase installations use `supabase/schema.sql`. Existing projects can ru
 
 Open **Watchlist**, enter a title, choose **Movie** or **TV show**, and select **+** to add it to **Queue**. Use the status menu beside a title to switch to **In progress** or **Finished**. Choosing **Finished** records today's date. Use **All** or one of the status filters to browse the list. Use the pencil to edit a title or its type, or the bin to remove it.
 
-The watchlist syncs through your private account and refreshes when you open the tab, return to the app, or reconnect. Demo mode saves entries in this browser. Watchlist entries are included in JSON backups. Fresh Supabase installations use `supabase/schema.sql`. Existing projects can apply the `watchlist_progress` migration after `private_watchlist`.
+Open **Description** while adding or editing a title to save notes or links. Each entry also has an **IMDb** link that searches IMDb for the current title. The description stays in Daymark when following the IMDb link.
+
+The watchlist syncs through your private account and refreshes when you open the tab, return to the app, or reconnect. Demo mode saves entries in this browser. Watchlist entries are included in JSON backups. Fresh Supabase installations use `supabase/schema.sql`. Existing projects can apply `private_watchlist`, `watchlist_progress`, and `watchlist_description` in order as needed.
 
 ## Links in text
 

@@ -17,6 +17,7 @@ try {
 
   let failRead = true, failWrite = true
   let entries = []
+  const note = 'Private watchlist note'
   await page.route(`https://${project}.supabase.co/**`, route => {
     const request = route.request(), url = new URL(request.url())
     if (url.pathname !== '/rest/v1/watchlist') return route.fulfill({ json: [] })
@@ -24,6 +25,7 @@ try {
     if (method === 'POST') {
       const input = request.postDataJSON()
       assert.equal(input.user_id, userId)
+      assert.equal(input.description, note)
       if (failWrite) return route.fulfill({ status: 503, json: { message: 'Could not save title. Try again.' } })
       const entry = { ...input, id: 'mock-watch-item', started: false, watched_on: null, created_at: new Date().toISOString() }
       entries.push(entry)
@@ -32,6 +34,7 @@ try {
     assert.equal(url.searchParams.get('user_id'), `eq.${userId}`)
     if (method === 'GET') {
       assert.ok(url.searchParams.get('select')?.split(',').includes('started'))
+      assert.ok(url.searchParams.get('select')?.split(',').includes('description'))
       if (failRead) return route.fulfill({ status: 403, json: { message: 'Watchlist unavailable' } })
       return route.fulfill({ json: entries })
     }
@@ -61,10 +64,14 @@ try {
   const title = page.getByRole('textbox', { name: 'Title', exact: true })
   await title.fill('Example show')
   await page.getByRole('combobox', { name: 'Type' }).selectOption('show')
+  await page.getByRole('button', { name: 'Description', exact: true }).click()
+  const description = page.getByRole('textbox', { name: 'Description', exact: true })
+  await description.fill(note)
   const add = page.getByRole('button', { name: 'Add title' })
   await add.click()
   await expect(page.getByRole('alert')).toContainText('Could not save title')
   await expect(title).toHaveValue('Example show')
+  await expect(description).toHaveValue(note)
   failWrite = false
   await add.click()
   const status = page.getByRole('combobox', { name: 'Status for Example show' })
@@ -79,6 +86,7 @@ try {
   entries[0].title = 'Renamed on another device'
   await page.evaluate(() => window.dispatchEvent(new Event('focus')))
   await expect(page.getByRole('combobox', { name: 'Status for Renamed on another device' })).toHaveValue('finished')
+  await expect(page.locator('.watchlist-description')).toHaveText(note)
   page.once('dialog', dialog => dialog.accept())
   await page.getByRole('button', { name: 'Remove Renamed on another device' }).click()
   await expect(page.getByText('No titles yet.')).toBeVisible()

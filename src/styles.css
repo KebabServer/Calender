@@ -273,7 +273,7 @@ h1, h2, h3 { font-family: 'Manrope', 'DM Sans', sans-serif; letter-spacing: -.05
 .markdown-preview ul, .markdown-preview ol { padding-left: 24px; }
 .markdown-preview li { margin: 3px 0; }
 .markdown-preview blockquote { margin-left: 0; padding: 4px 17px; border-left: 3px solid var(--accent); color: var(--muted); }
-.markdown-preview a, .day-event-description a, .task-description a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+.markdown-preview a, .day-event-description a, .task-description a, .watchlist-description a, .watchlist-imdb { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
 .markdown-preview pre { overflow: auto; padding: 15px; background: var(--panel); border-radius: 8px; }
 .markdown-preview :not(pre) > code { background: var(--raised); padding: 2px 4px; border-radius: 4px; }
 .markdown-preview table { border-collapse: collapse; max-width: 100%; display: block; overflow-x: auto; }
@@ -634,14 +634,21 @@ h1, h2, h3 { font-family: 'Manrope', 'DM Sans', sans-serif; letter-spacing: -.05
 @media (max-width: 700px) { .tasks-view, .watchlist-view { padding: 18px 12px; } }
 
 .watchlist-view h1 { margin: 0 0 16px; font-size: 24px; }
-.watchlist-compose { display: flex; align-items: center; gap: 6px; margin-bottom: 14px; }
+.watchlist-compose { margin-bottom: 10px; }
+.watchlist-compose-main { display: flex; align-items: center; gap: 6px; }
 .watchlist-compose input, .watchlist-compose select { min-width: 0; height: 42px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--input); font-size: 16px; }
 .watchlist-compose input { width: 0; flex: 1; }
-.watchlist-compose > .button { width: 39px; height: 42px; flex: none; padding: 0; }
+.watchlist-compose-main > .button { width: 39px; height: 42px; flex: none; padding: 0; }
 .watchlist-compose .icon-button { width: 32px; height: 42px; }
+.watchlist-description-toggle { display: flex; align-items: center; gap: 4px; min-height: 32px; padding: 0 4px; margin-top: 2px; color: var(--muted); font-size: 12px; }
+.watchlist-description-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
+.watchlist-description-input { width: 100%; min-height: 44px; resize: vertical; padding: 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--input); font-size: 16px; }
 .watchlist-entry { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .watchlist-entry > span { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; }
-.watchlist-row { gap: 6px; }
+.watchlist-entry time { white-space: nowrap; }
+.watchlist-imdb { display: inline-flex; align-items: center; gap: 2px; white-space: nowrap; }
+.watchlist-row { flex-wrap: wrap; gap: 6px; }
+.watchlist-description { flex: 0 0 100%; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.4; white-space: pre-wrap; overflow-wrap: anywhere; }
 .watchlist-status { height: 34px; width: 108px; flex: none; padding: 4px 5px; border: 1px solid var(--border); border-radius: 7px; background: var(--input); font-size: 13px; }
 .watchlist-retry { text-decoration: underline; }
 
