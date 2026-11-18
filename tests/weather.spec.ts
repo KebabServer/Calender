@@ -2,13 +2,13 @@ import { expect, test } from '@playwright/test'
 import { parseWeather, helsinkiDateKey } from '../src/lib/weather'
 
 const now = new Date('2026-11-17T23:30:00Z') // Already 18 November in Helsinki.
-function forecast() {
+function forecast(temperature = -1.4) {
   return { properties: {
     meta: { updated_at: '2026-11-17T23:00:00Z', units: { air_temperature: 'celsius', wind_speed: 'm/s', precipitation_amount: 'mm', relative_humidity: '%' } },
     timeseries: Array.from({length: 25}, (_, index) => ({
       time: new Date(Date.UTC(2026, 10, 17, 23 + index)).toISOString().replace('.000Z', 'Z'),
       data: {
-        instant: { details: { air_temperature: -1.4 + index / 10, relative_humidity: 84, wind_speed: 3.2 } },
+        instant: { details: { air_temperature: temperature + index / 10, relative_humidity: 84, wind_speed: 3.2 } },
         next_1_hours: { summary: { symbol_code: index % 3 === 0 ? 'snow' : index % 3 === 1 ? 'clearsky_night' : 'partlycloudy_day' }, details: { precipitation_amount: 0.2 } },
       },
     })),
@@ -37,7 +37,12 @@ for (const width of [320, 375, 1440]) {
     for (const name of ['Calendar', 'Notes', 'To-do', 'Weather']) await expect(nav.getByRole('button', { name, exact: true })).toBeInViewport()
     await expect(page.getByRole('button', { name: 'Settings', exact: true })).toBeInViewport()
     await nav.getByRole('button', { name: 'Weather', exact: true }).click()
-    await expect(page.getByRole('heading', { name: 'Helsinki', exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Weather', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Helsinki', pressed: true })).toBeInViewport()
+    await expect(page.getByRole('button', { name: 'Otaniemi', pressed: false })).toBeInViewport()
+    const radar = page.getByRole('link', { name: 'Sadetutka (Ilmatieteen laitos)' })
+    await expect(radar).toBeInViewport()
+    await expect(radar).toHaveAttribute('href', 'https://www.ilmatieteenlaitos.fi/sade-ja-pilvialueet/sadetutka')
     await expect(nav.getByRole('button', { name: 'Weather', exact: true })).toHaveAttribute('aria-current', 'page')
     await expect(page.locator('.weather-temperature')).toHaveText('-1°C')
     await expect(page.locator('.weather-metrics')).toContainText('3.2 m/s')
@@ -55,6 +60,50 @@ for (const width of [320, 375, 1440]) {
     expect(calls).toBe(1)
   })
 }
+
+test('weather locations load and cache separate forecasts', async ({ page }) => {
+  await page.clock.setFixedTime(now)
+  let helsinkiCalls = 0, otaniemiCalls = 0, otaniemiUnavailable = true
+  await page.route(endpoint, route => {
+    const coordinates = new URL(route.request().url()).searchParams
+    if (coordinates.get('lat') === '60.1699') {
+      expect(coordinates.get('lon')).toBe('24.9384')
+      helsinkiCalls++
+      return route.fulfill({ json: forecast() })
+    }
+    expect(coordinates.get('lat')).toBe('60.1850')
+    expect(coordinates.get('lon')).toBe('24.8270')
+    otaniemiCalls++
+    if (otaniemiUnavailable) return route.fulfill({ status: 503 })
+    return route.fulfill({ json: forecast(3.3) })
+  })
+  await page.goto('./', { waitUntil: 'domcontentloaded' })
+  const nav = page.getByRole('navigation', { name: 'Main navigation' })
+  const temperature = page.locator('.weather-temperature')
+  const otaniemi = page.getByRole('button', { name: 'Otaniemi', exact: true })
+  await nav.getByRole('button', { name: 'Weather', exact: true }).click()
+  await expect(temperature).toHaveText('-1°C')
+
+  await otaniemi.click()
+  await expect(otaniemi).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByRole('alert')).toContainText('Could not load Otaniemi weather')
+  await expect(temperature).toHaveCount(0)
+  await expect(page.getByRole('link', { name: /Sadetutka/ })).toBeVisible()
+
+  otaniemiUnavailable = false
+  await page.getByRole('button', { name: 'Try again', exact: true }).click()
+  await expect(temperature).toHaveText('3°C')
+  await page.getByRole('button', { name: 'Helsinki', exact: true }).click()
+  await expect(temperature).toHaveText('-1°C')
+  await otaniemi.click()
+  await expect(temperature).toHaveText('3°C')
+  await nav.getByRole('button', { name: 'Calendar', exact: true }).click()
+  await nav.getByRole('button', { name: 'Weather', exact: true }).click()
+  await expect(otaniemi).toHaveAttribute('aria-pressed', 'true')
+  await expect(temperature).toHaveText('3°C')
+  expect(helsinkiCalls).toBe(1)
+  expect(otaniemiCalls).toBe(2)
+})
 
 test('Helsinki times are independent of the device timezone', async ({ browser }) => {
   const context = await browser.newContext({ timezoneId: 'America/Los_Angeles' })

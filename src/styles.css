@@ -636,10 +636,16 @@ h1, h2, h3 { font-family: 'Manrope', 'DM Sans', sans-serif; letter-spacing: -.05
 .undo-notice .button { min-height: 34px; padding: 6px 12px; }
 .undo-notice .icon-button { width: 28px; height: 30px; }
 
-.weather-view { width: 100%; max-width: 640px; margin: 0 auto; padding: 24px; }
-.weather-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.weather-view { display: grid; grid-template-columns: minmax(0, 1fr) auto; width: 100%; max-width: 640px; margin: 0 auto; padding: 24px; }
+.weather-heading { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; }
 .weather-heading h1 { margin: 0; font-size: 26px; }
-.weather-heading p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
+.weather-radar { display: inline-flex; align-items: center; gap: 4px; min-height: 36px; color: var(--text-soft); font-size: 12px; }
+.weather-radar:hover { text-decoration: underline; }
+.weather-locations { display: flex; gap: 6px; }
+.weather-locations button { min-height: 36px; padding: 6px 12px; border-radius: 8px; color: var(--muted); font-size: 13px; }
+.weather-locations button:hover { background: var(--hover); color: var(--text); }
+.weather-locations button[aria-pressed="true"] { background: var(--accent-trans); color: var(--text); }
+.weather-body { grid-column: 1 / -1; min-width: 0; margin-top: 12px; }
 .weather-current { padding: 18px; margin-bottom: 14px; }
 .weather-now { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .weather-temperature { font-size: 48px; font-weight: 650; line-height: 1.1; letter-spacing: -.06em; }

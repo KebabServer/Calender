@@ -1,13 +1,18 @@
 export const WEATHER_REFRESH_MS = 15 * 60 * 1000
 export const HELSINKI_TIMEZONE = 'Europe/Helsinki'
-export const helsinkiForecastUrl = 'https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=60.1699&lon=24.9384'
+export const WEATHER_COORDINATES = {
+  Helsinki: 'lat=60.1699&lon=24.9384',
+  Otaniemi: 'lat=60.1850&lon=24.8270',
+} as const
+
+export type WeatherLocation = keyof typeof WEATHER_COORDINATES
 
 export type WeatherKind = 'clear' | 'fair' | 'partly-cloudy' | 'cloudy' | 'fog' | 'rain' | 'heavy-rain' | 'rain-showers' | 'snow' | 'heavy-snow' | 'snow-showers' | 'sleet' | 'storm' | 'unknown'
 export type WeatherPeriod = {
   time: string; temperature: number | null; humidity: number | null; wind: number | null
   precipitation: number | null; precipitationHours: number | null; kind: WeatherKind; isDay: boolean
 }
-export type HelsinkiWeather = { receivedAt: number; issuedAt: string; current: WeatherPeriod; forecast: WeatherPeriod[] }
+export type WeatherForecast = { receivedAt: number; issuedAt: string; current: WeatherPeriod; forecast: WeatherPeriod[] }
 
 function object(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid weather response')
@@ -35,7 +40,7 @@ function kind(symbol: unknown): WeatherKind {
   return 'unknown'
 }
 
-export function parseWeather(value: unknown, receivedAt = Date.now()): HelsinkiWeather {
+export function parseWeather(value: unknown, receivedAt = Date.now()): WeatherForecast {
   const data = object(value), properties = object(data.properties), meta = object(properties.meta), units = object(meta.units)
   if (units.air_temperature !== 'celsius' || units.wind_speed !== 'm/s' || units.precipitation_amount !== 'mm'
     || units.relative_humidity !== '%' || !timestamp(meta.updated_at)) throw new Error('Unexpected weather units or timestamp')
@@ -62,10 +67,11 @@ export function parseWeather(value: unknown, receivedAt = Date.now()): HelsinkiW
   return { receivedAt, issuedAt: meta.updated_at, current, forecast }
 }
 
-export async function fetchHelsinkiWeather(signal: AbortSignal): Promise<HelsinkiWeather> {
+export async function fetchWeather(location: WeatherLocation, signal: AbortSignal): Promise<WeatherForecast> {
   // A simple CORS request identifies the public site via Origin. Never send account credentials.
   // Default HTTP caching respects MET Norway's Expires/Last-Modified response headers.
-  const response = await fetch(helsinkiForecastUrl, { signal, credentials: 'omit', referrerPolicy: 'no-referrer', cache: 'default' })
+  const url = `https://api.met.no/weatherapi/locationforecast/2.0/compact?${WEATHER_COORDINATES[location]}`
+  const response = await fetch(url, { signal, credentials: 'omit', referrerPolicy: 'no-referrer', cache: 'default' })
   if (!response.ok) throw new Error('Weather service unavailable')
   return parseWeather(await response.json())
 }
