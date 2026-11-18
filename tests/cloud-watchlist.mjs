@@ -27,7 +27,7 @@ try {
       assert.equal(input.user_id, userId)
       assert.equal(input.description, note)
       if (failWrite) return route.fulfill({ status: 503, json: { message: 'Could not save title. Try again.' } })
-      const entry = { ...input, id: 'mock-watch-item', started: false, watched_on: null, created_at: new Date().toISOString() }
+      const entry = { ...input, id: 'mock-watch-item', started: false, currently_watching: false, watched_on: null, created_at: new Date().toISOString() }
       entries.push(entry)
       return route.fulfill({ json: entry })
     }
@@ -35,15 +35,17 @@ try {
     if (method === 'GET') {
       assert.ok(url.searchParams.get('select')?.split(',').includes('started'))
       assert.ok(url.searchParams.get('select')?.split(',').includes('description'))
+      assert.ok(url.searchParams.get('select')?.split(',').includes('currently_watching'))
       if (failRead) return route.fulfill({ status: 403, json: { message: 'Watchlist unavailable' } })
       return route.fulfill({ json: entries })
     }
     assert.equal(url.searchParams.get('id'), 'eq.mock-watch-item')
     if (method === 'PATCH') {
       const changes = request.postDataJSON()
-      if (changes.watched_on === null) assert.deepEqual(changes, { started: true, watched_on: null })
+      assert.equal(typeof changes.currently_watching, 'boolean')
+      if (changes.watched_on === null) assert.deepEqual(changes, { started: true, currently_watching: changes.currently_watching, watched_on: null })
       else {
-        assert.deepEqual(Object.keys(changes), ['watched_on'])
+        assert.deepEqual(changes, { currently_watching: false, watched_on: changes.watched_on })
         assert.match(changes.watched_on, /^\d{4}-\d{2}-\d{2}$/)
       }
       Object.assign(entries[0], changes)
@@ -77,11 +79,16 @@ try {
   const status = page.getByRole('combobox', { name: 'Status for Example show' })
   await status.selectOption({ label: 'In progress' })
   await expect(status).toHaveValue('in_progress')
-  await expect(page.getByRole('list', { name: 'Currently watching', exact: true }).getByText('Watching', { exact: true })).toBeVisible()
+  await expect(page.getByRole('list', { name: 'In progress', exact: true }).getByText('Example show', { exact: true })).toBeVisible()
+  assert.equal(entries[0].currently_watching, false)
+  await status.selectOption({ label: 'Watching' })
+  await expect(status).toHaveValue('watching')
+  await expect(page.getByRole('list', { name: 'Currently watching', exact: true }).locator('.watchlist-watching')).toHaveText('Watching')
   await page.getByRole('button', { name: 'Currently watching', exact: true }).click()
   await expect(status).toBeVisible()
   await page.getByRole('button', { name: 'All', exact: true }).click()
   assert.equal(entries[0].started, true)
+  assert.equal(entries[0].currently_watching, true)
   assert.equal(entries[0].watched_on, null)
   await status.selectOption({ label: 'Finished' })
   await expect(status).toHaveValue('finished')

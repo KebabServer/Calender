@@ -46,11 +46,12 @@ export type WatchItem = {
   kind: 'movie' | 'show'
   description: string
   started: boolean
+  currently_watching: boolean
   watched_on: string | null
   created_at: string
 }
 export type WatchInput = Pick<WatchItem, 'title' | 'kind' | 'description'>
-export type WatchUpdates = Partial<WatchInput & Pick<WatchItem, 'started' | 'watched_on'>>
+export type WatchUpdates = Partial<WatchInput & Pick<WatchItem, 'started' | 'currently_watching' | 'watched_on'>>
 
 export type View = 'notes' | 'calendar' | 'tasks' | 'weather' | 'watchlist'
 export type NoteFilter = 'all' | 'pinned'

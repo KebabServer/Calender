@@ -52,7 +52,7 @@ function readDemo() {
     const raw = localStorage.getItem(DEMO_KEY)
     if (raw) {
       const value = JSON.parse(raw) as ReturnType<typeof demoSeed>
-      return { ...value, watchlist: (value.watchlist ?? []).map(item => ({ ...item, description: item.description ?? '', started: item.started ?? false })), tasks: (value.tasks ?? []).map(task => ({ ...task, description: task.description ?? '', due_date: task.due_date ?? null,
+      return { ...value, watchlist: (value.watchlist ?? []).map(item => ({ ...item, description: item.description ?? '', started: item.started ?? false, currently_watching: item.currently_watching ?? false })), tasks: (value.tasks ?? []).map(task => ({ ...task, description: task.description ?? '', due_date: task.due_date ?? null,
         refresh_weekday: task.refresh_weekday ?? null, refresh_time: task.refresh_time ?? null,
         refresh_timezone: task.refresh_timezone ?? TASK_TIMEZONE, next_refresh_at: task.next_refresh_at ?? null })) }
     }
@@ -103,7 +103,7 @@ export const demoRepository: Repository = {
   async getWatchlist() { return readDemo().watchlist },
   async createWatchItem(input) {
     const state = readDemo()
-    const item: WatchItem = { ...input, id: crypto.randomUUID(), started: false, watched_on: null, created_at: new Date().toISOString() }
+    const item: WatchItem = { ...input, id: crypto.randomUUID(), started: false, currently_watching: false, watched_on: null, created_at: new Date().toISOString() }
     state.watchlist.unshift(item)
     writeDemo(state)
     return item
@@ -185,7 +185,7 @@ export function createCloudRepository(userId: string): Repository {
   if (!supabase) throw new Error('Cloud is not configured')
   const client = supabase
   const taskColumns = 'id,title,description,due_date,refresh_weekday,refresh_time,refresh_timezone,next_refresh_at,completed,created_at,updated_at'
-  const watchColumns = 'id,title,kind,description,started,watched_on,created_at'
+  const watchColumns = 'id,title,kind,description,started,currently_watching,watched_on,created_at'
   return {
     async getTasks() {
       const read = () => client.from('tasks').select(taskColumns).eq('user_id', userId).order('created_at', { ascending: false })

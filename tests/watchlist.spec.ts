@@ -55,7 +55,7 @@ test('watchlist tracks titles, descriptions and IMDb links at 320px', async ({ p
   await expect(movie).toBeVisible()
   await page.getByRole('button', { name: 'Queue', exact: true }).click()
   await expect(page.getByText('Your queue is empty.')).toBeVisible()
-  await page.getByRole('button', { name: 'Currently watching', exact: true }).click()
+  await page.getByRole('button', { name: 'In progress', exact: true }).click()
   await expect(movie).toHaveCount(0)
   await expect(show).toBeVisible()
   await page.getByRole('button', { name: 'Edit Severance' }).click()
@@ -129,7 +129,7 @@ test('older watchlists keep finished dates and send unfinished titles to Queue',
   await expect(page.getByRole('textbox', { name: 'Description', exact: true })).toHaveValue('')
 })
 
-test('Watching titles appear first and search works within the current filter', async ({ page }) => {
+test('Currently watching and In progress are separate groups and filters', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 })
   await page.goto('./', { waitUntil: 'domcontentloaded' })
   await expect(page.locator('.calendar-controls h2')).toBeVisible()
@@ -138,7 +138,7 @@ test('Watching titles appear first and search works within the current filter', 
     const state = JSON.parse(localStorage.getItem(key)!)
     state.watchlist = [
       { id: 'arrival', title: 'Arrival', kind: 'movie', description: 'Alien language', started: false, watched_on: null, created_at: '2026-11-04T15:00:00Z' },
-      { id: 'severance', title: 'Severance', kind: 'show', description: 'Office mystery', started: true, watched_on: null, created_at: '2026-11-03T15:00:00Z' },
+      { id: 'severance', title: 'Severance', kind: 'show', description: 'Office mystery', started: true, currently_watching: true, watched_on: null, created_at: '2026-11-03T15:00:00Z' },
       { id: 'dune', title: 'Dune', kind: 'movie', description: 'Galactic politics', started: true, watched_on: '2026-11-06', created_at: '2026-11-02T15:00:00Z' },
       { id: 'foundation', title: 'Foundation', kind: 'show', description: 'Galactic empire', started: true, watched_on: null, created_at: '2026-11-01T15:00:00Z' },
     ]
@@ -147,20 +147,27 @@ test('Watching titles appear first and search works within the current filter', 
   await page.getByRole('button', { name: 'Watchlist', exact: true }).click()
   const search = page.getByRole('searchbox', { name: 'Search watchlist' })
   const titles = page.locator('.watchlist-entry strong')
-  const watching = page.getByText('Watching', { exact: true })
+  const watching = page.locator('.watchlist-watching')
   const watchingList = page.getByRole('list', { name: 'Currently watching', exact: true })
   const watchingFilter = page.getByRole('button', { name: 'Currently watching', exact: true })
+  const inProgressList = page.getByRole('list', { name: 'In progress', exact: true })
+  const inProgressFilter = page.getByRole('button', { name: 'In progress', exact: true })
   await expect(search).toBeInViewport({ ratio: 1 })
   await expect(watchingFilter).toBeInViewport({ ratio: 1 })
+  await expect(inProgressFilter).toBeInViewport({ ratio: 1 })
   await expect(titles).toHaveText(['Severance', 'Foundation', 'Arrival', 'Dune'])
-  await expect(watchingList.locator('strong')).toHaveText(['Severance', 'Foundation'])
+  await expect(watchingList.locator('strong')).toHaveText(['Severance'])
+  await expect(inProgressList.locator('strong')).toHaveText(['Foundation'])
   await expect(page.getByRole('list', { name: 'Other titles', exact: true }).locator('strong')).toHaveText(['Arrival', 'Dune'])
-  await expect(watching).toHaveCount(2)
-  await expect(page.getByRole('listitem').filter({ hasText: 'Dune' }).getByText('Watching', { exact: true })).toHaveCount(0)
+  await expect(watching).toHaveText(['Watching'])
+  await expect(page.getByRole('listitem').filter({ hasText: 'Dune' }).locator('.watchlist-watching')).toHaveCount(0)
 
   await watchingFilter.click()
-  await expect(titles).toHaveText(['Severance', 'Foundation'])
+  await expect(titles).toHaveText(['Severance'])
   await expect(watchingFilter).toHaveAttribute('aria-pressed', 'true')
+  await inProgressFilter.click()
+  await expect(titles).toHaveText(['Foundation'])
+  await expect(watching).toHaveCount(0)
   await page.getByRole('button', { name: 'All', exact: true }).click()
 
   await search.fill('  GALACTIC  ')
@@ -174,12 +181,18 @@ test('Watching titles appear first and search works within the current filter', 
 
   await search.fill('')
   await page.getByRole('button', { name: 'All', exact: true }).click()
-  await page.getByRole('combobox', { name: 'Status for Arrival' }).selectOption('in_progress')
+  const arrivalStatus = page.getByRole('combobox', { name: 'Status for Arrival' })
+  await arrivalStatus.selectOption({ label: 'Watching' })
   await expect(titles).toHaveText(['Arrival', 'Severance', 'Foundation', 'Dune'])
-  await expect(watchingList.locator('strong')).toHaveText(['Arrival', 'Severance', 'Foundation'])
-  await expect(watching).toHaveCount(3)
-  await page.getByRole('combobox', { name: 'Status for Arrival' }).selectOption('queued')
+  await expect(watchingList.locator('strong')).toHaveText(['Arrival', 'Severance'])
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.getByRole('button', { name: 'Watchlist', exact: true }).click()
+  await expect(arrivalStatus).toHaveValue('watching')
+  await arrivalStatus.selectOption('in_progress')
+  await expect(watchingList.locator('strong')).toHaveText(['Severance'])
+  await expect(inProgressList.locator('strong')).toHaveText(['Arrival', 'Foundation'])
+  await arrivalStatus.selectOption('queued')
   await expect(titles).toHaveText(['Severance', 'Foundation', 'Arrival', 'Dune'])
-  await expect(watching).toHaveCount(2)
+  await expect(watching).toHaveCount(1)
   expect(await page.locator('main').evaluate(el => el.scrollWidth <= el.clientWidth)).toBeTruthy()
 })

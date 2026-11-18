@@ -12,12 +12,13 @@ type Props = {
 }
 
 const kinds = { movie: 'Movie', show: 'TV show' } as const
-const statuses = { queued: 'Queue', in_progress: 'In progress', finished: 'Finished' } as const
-const watchingLabel = 'Currently watching'
-const filters = { all: 'All', ...statuses, in_progress: watchingLabel } as const
+const statuses = { queued: 'Queue', watching: 'Currently watching', in_progress: 'In progress', finished: 'Finished' } as const
+const statusOptions = { ...statuses, watching: 'Watching' } as const
+const filters = { all: 'All', ...statuses } as const
 const emptyMessages = {
   all: 'No titles yet.',
   queued: 'Your queue is empty.',
+  watching: 'No titles currently being watched.',
   in_progress: 'No titles in progress.',
   finished: 'No finished titles yet.',
 }
@@ -25,7 +26,8 @@ type Status = keyof typeof statuses
 
 function statusOf(item: WatchItem): Status {
   if (item.watched_on) return 'finished'
-  return item.started ? 'in_progress' : 'queued'
+  if (!item.started) return 'queued'
+  return item.currently_watching ? 'watching' : 'in_progress'
 }
 
 export function WatchlistView({ active, repository, onPendingChange }: Props) {
@@ -124,8 +126,8 @@ export function WatchlistView({ active, repository, onPendingChange }: Props) {
   function changeStatus(item: WatchItem, status: Status) {
     if (statusOf(item) === status) return
     const updates = status === 'finished'
-      ? { watched_on: format(new Date(), 'yyyy-MM-dd') }
-      : { started: status === 'in_progress', watched_on: null }
+      ? { currently_watching: false, watched_on: format(new Date(), 'yyyy-MM-dd') }
+      : { started: status !== 'queued', currently_watching: status === 'watching', watched_on: null }
     void change(async () => replace(await repository.saveWatchItem(item.id, updates)))
   }
 
@@ -144,10 +146,12 @@ export function WatchlistView({ active, repository, onPendingChange }: Props) {
     .map(item => ({ item, status: statusOf(item) }))
     .filter(({ item, status }) => (filter === 'all' || status === filter)
       && (!query || item.title.toLowerCase().includes(query) || item.description.toLowerCase().includes(query)))
-  const watching = filter === 'all' ? visible.filter(({ status }) => status === 'in_progress') : []
-  const groups = watching.length ? [
-    { id: 'currently-watching', label: watchingLabel, entries: watching },
-    { id: 'other-titles', label: 'Other titles', entries: visible.filter(({ status }) => status !== 'in_progress') },
+  const watching = filter === 'all' ? visible.filter(({ status }) => status === 'watching') : []
+  const inProgress = filter === 'all' ? visible.filter(({ status }) => status === 'in_progress') : []
+  const groups = watching.length || inProgress.length ? [
+    { id: 'currently-watching', label: statuses.watching, entries: watching },
+    { id: 'in-progress', label: statuses.in_progress, entries: inProgress },
+    { id: 'other-titles', label: 'Other titles', entries: visible.filter(({ status }) => status === 'queued' || status === 'finished') },
   ] : [{ id: 'other-titles', label: null, entries: visible }]
 
   return <section className="watchlist-view" aria-labelledby="watchlist-title">
@@ -187,14 +191,14 @@ export function WatchlistView({ active, repository, onPendingChange }: Props) {
             <div className="watchlist-entry">
               <div className="watchlist-entry-title">
                 <strong>{item.title}</strong>
-                {status === 'in_progress' && <span className="watchlist-watching">Watching</span>}
+                {status === 'watching' && <span className="watchlist-watching">Watching</span>}
               </div>
               <span>{kinds[item.kind]} · <WebLink className="watchlist-imdb" href={`https://www.imdb.com/find/?${new URLSearchParams({ q: item.title, s: 'tt' })}`} aria-label={`Search IMDb for ${item.title}`}>
                 IMDb <ArrowUpRight size={12} aria-hidden="true"/>
               </WebLink>{item.watched_on && <> · <time dateTime={item.watched_on}>{format(parseISO(item.watched_on), 'd MMM yyyy')}</time></>}</span>
             </div>
             <select className="watchlist-status" value={status} disabled={busy} aria-label={`Status for ${item.title}`} onChange={event => changeStatus(item, event.target.value as Status)}>
-              {Object.entries(statuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              {Object.entries(statusOptions).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
             <button className="icon-button" disabled={busy || hasDraft} aria-label={`Edit ${item.title}`} onClick={() => edit(item)}><Pencil size={15}/></button>
             <button className="icon-button" disabled={busy} aria-label={`Remove ${item.title}`} onClick={() => remove(item)}><Trash2 size={15}/></button>
