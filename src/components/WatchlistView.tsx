@@ -13,11 +13,12 @@ type Props = {
 
 const kinds = { movie: 'Movie', show: 'TV show' } as const
 const statuses = { queued: 'Queue', in_progress: 'In progress', finished: 'Finished' } as const
-const filters = { all: 'All', ...statuses } as const
+const watchingLabel = 'Currently watching'
+const filters = { all: 'All', ...statuses, in_progress: watchingLabel } as const
 const emptyMessages = {
   all: 'No titles yet.',
   queued: 'Your queue is empty.',
-  in_progress: 'Nothing in progress.',
+  in_progress: 'No titles in progress.',
   finished: 'No finished titles yet.',
 }
 type Status = keyof typeof statuses
@@ -143,7 +144,11 @@ export function WatchlistView({ active, repository, onPendingChange }: Props) {
     .map(item => ({ item, status: statusOf(item) }))
     .filter(({ item, status }) => (filter === 'all' || status === filter)
       && (!query || item.title.toLowerCase().includes(query) || item.description.toLowerCase().includes(query)))
-    .sort((a, b) => Number(b.status === 'in_progress') - Number(a.status === 'in_progress'))
+  const watching = filter === 'all' ? visible.filter(({ status }) => status === 'in_progress') : []
+  const groups = watching.length ? [
+    { id: 'currently-watching', label: watchingLabel, entries: watching },
+    { id: 'other-titles', label: 'Other titles', entries: visible.filter(({ status }) => status !== 'in_progress') },
+  ] : [{ id: 'other-titles', label: null, entries: visible }]
 
   return <section className="watchlist-view" aria-labelledby="watchlist-title">
     <h1 id="watchlist-title">Watchlist</h1>
@@ -175,23 +180,28 @@ export function WatchlistView({ active, repository, onPendingChange }: Props) {
       <div className="watchlist-filters" role="group" aria-label="Watchlist filters">
         {(Object.keys(filters) as (keyof typeof filters)[]).map(value => <button key={value} aria-pressed={filter === value} onClick={() => setFilter(value)}>{filters[value]}</button>)}
       </div>
-      <ul className="watchlist-items">{visible.map(({ item, status }) => <li className="watchlist-row" key={item.id}>
-        <div className="watchlist-entry">
-          <div className="watchlist-entry-title">
-            <strong>{item.title}</strong>
-            {status === 'in_progress' && <span className="watchlist-watching">Watching</span>}
-          </div>
-          <span>{kinds[item.kind]} · <WebLink className="watchlist-imdb" href={`https://www.imdb.com/find/?${new URLSearchParams({ q: item.title, s: 'tt' })}`} aria-label={`Search IMDb for ${item.title}`}>
-            IMDb <ArrowUpRight size={12} aria-hidden="true"/>
-          </WebLink>{item.watched_on && <> · <time dateTime={item.watched_on}>{format(parseISO(item.watched_on), 'd MMM yyyy')}</time></>}</span>
-        </div>
-        <select className="watchlist-status" value={status} disabled={busy} aria-label={`Status for ${item.title}`} onChange={event => changeStatus(item, event.target.value as Status)}>
-          {Object.entries(statuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-        </select>
-        <button className="icon-button" disabled={busy || hasDraft} aria-label={`Edit ${item.title}`} onClick={() => edit(item)}><Pencil size={15}/></button>
-        <button className="icon-button" disabled={busy} aria-label={`Remove ${item.title}`} onClick={() => remove(item)}><Trash2 size={15}/></button>
-        {item.description && <p className="watchlist-description"><LinkedText text={item.description}/></p>}
-      </li>)}</ul>
+      {groups.filter(group => group.entries.length > 0).map(({ id, label, entries }) => <div className="watchlist-group" key={id}>
+        {label && <h2 id={id}>{label}</h2>}
+        <ul className="watchlist-items" aria-labelledby={label ? id : undefined}>
+          {entries.map(({ item, status }) => <li className="watchlist-row" key={item.id}>
+            <div className="watchlist-entry">
+              <div className="watchlist-entry-title">
+                <strong>{item.title}</strong>
+                {status === 'in_progress' && <span className="watchlist-watching">Watching</span>}
+              </div>
+              <span>{kinds[item.kind]} · <WebLink className="watchlist-imdb" href={`https://www.imdb.com/find/?${new URLSearchParams({ q: item.title, s: 'tt' })}`} aria-label={`Search IMDb for ${item.title}`}>
+                IMDb <ArrowUpRight size={12} aria-hidden="true"/>
+              </WebLink>{item.watched_on && <> · <time dateTime={item.watched_on}>{format(parseISO(item.watched_on), 'd MMM yyyy')}</time></>}</span>
+            </div>
+            <select className="watchlist-status" value={status} disabled={busy} aria-label={`Status for ${item.title}`} onChange={event => changeStatus(item, event.target.value as Status)}>
+              {Object.entries(statuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+            <button className="icon-button" disabled={busy || hasDraft} aria-label={`Edit ${item.title}`} onClick={() => edit(item)}><Pencil size={15}/></button>
+            <button className="icon-button" disabled={busy} aria-label={`Remove ${item.title}`} onClick={() => remove(item)}><Trash2 size={15}/></button>
+            {item.description && <p className="watchlist-description"><LinkedText text={item.description}/></p>}
+          </li>)}
+        </ul>
+      </div>)}
       {!visible.length && <p className="watchlist-empty" role="status">{query ? 'No matching titles.' : emptyMessages[filter]}</p>}
     </>}
   </section>

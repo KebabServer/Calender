@@ -47,6 +47,7 @@ try {
  await page.locator('.day-event-main').filter({hasText:'Independent cloud copies'}).click()
  await page.getByLabel('Duration', { exact: true }).selectOption('120')
  await page.getByRole('button',{name:'Save changes'}).click()
+ await page.getByRole('dialog',{name:'Edit event',exact:true}).waitFor({state:'hidden'})
  assert.equal(records[1].end_time,'20:00');assert.equal(records[0].end_time,null);assert.equal(records[2].end_time,null)
  await page.reload({waitUntil:'domcontentloaded'})
  await page.locator('.selected-day .calendar-event-time').filter({hasText:'18:00 · ?'}).waitFor()

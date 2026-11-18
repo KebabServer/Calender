@@ -11,7 +11,7 @@ A calm, responsive personal notes-and-calendar app. Made with React, TypeScript,
 - Calendar opens by default, with direct navigation to notes, to-do list, weather, watchlist and settings
 - Add, edit, complete, reopen and delete private tasks with optional descriptions and due dates; filter Open, All or Done
 - Optional weekly task refresh at a chosen weekday and time, including while the app is closed
-- Track movies and TV shows with Queue, In progress, and Finished filters and finish dates
+- Track movies and TV shows with Queue, Currently watching, and Finished filters and finish dates
 - Helsinki, Otaniemi, and Inkoo weather with a compact 12-hour forecast and a Finnish Meteorological Institute rain radar link
 - 🌓 Light and dark themes; mobile navigation and responsive layouts
 - ☁️ Optional email/password accounts, Supabase-backed storage and cross-device sync
@@ -92,7 +92,7 @@ Fresh Supabase installations use `supabase/schema.sql`. Existing projects can ru
 
 Open **Watchlist**, enter a title, choose **Movie** or **TV show**, and select **+** to add it to **Queue**. Use the status menu beside a title to switch to **In progress** or **Finished**. Choosing **Finished** records today's date. Use **All** or one of the status filters to browse the list. Use the pencil to edit a title or its type, or the bin to remove it.
 
-Titles marked **In progress** get a **Watching** tag and appear first in **All**. The search field matches titles and descriptions within the selected status filter.
+Titles marked **In progress** get a **Watching** tag and appear in the **Currently watching** section at the top of **All**. Select the **Currently watching** filter to see those titles on their own. The search field matches titles and descriptions within the selected status filter.
 
 Open **Description** while adding or editing a title to save notes or links. Each entry also has an **IMDb** link that searches IMDb for the current title. The description stays in Daymark when following the IMDb link.
 

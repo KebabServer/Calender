@@ -645,6 +645,10 @@ h1, h2, h3 { font-family: 'Manrope', 'DM Sans', sans-serif; letter-spacing: -.05
 .watchlist-description-input { width: 100%; min-height: 44px; resize: vertical; padding: 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--input); font-size: 16px; }
 .watchlist-search { margin: 0 0 8px; }
 .watchlist-search input { font-size: 16px; }
+.watchlist-filters { flex-wrap: wrap; gap: 4px; }
+.watchlist-filters button { padding-inline: 8px; }
+.watchlist-group + .watchlist-group { margin-top: 12px; }
+.watchlist-group h2 { margin: 0 0 2px; color: var(--text-soft); font-size: 13px; letter-spacing: 0; }
 .watchlist-entry { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .watchlist-entry-title { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 .watchlist-entry-title strong { min-width: 0; }
