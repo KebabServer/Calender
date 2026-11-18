@@ -25,7 +25,14 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm run typecheck
       - run: npm run test:security
-      - run: npx playwright install --with-deps chromium
+      - name: Select browser for tests
+        run: |
+          test_browser="$(command -v google-chrome || true)"
+          if [ -n "$test_browser" ]; then
+            echo "PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=$test_browser" >> "$GITHUB_ENV"
+          else
+            npx playwright install --with-deps chromium
+          fi
       - name: Build demo for browser tests
         env:
           VITE_BASE_PATH: /Calender/
