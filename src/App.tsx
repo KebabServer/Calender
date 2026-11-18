@@ -109,6 +109,15 @@ function Workspace({ session, update }: { session: Session | null; update: strin
     return () => { window.removeEventListener('focus', syncOnReturn); window.removeEventListener('online', syncOnReturn); document.removeEventListener('visibilitychange', syncOnReturn) }
   }, [authReady, activeUserId, refresh])
 
+  useEffect(() => {
+    if (taskBusy) return
+    const deadlines = tasks.filter(task => task.next_refresh_at && task.refresh_weekday != null).map(task => new Date(task.next_refresh_at!).getTime()).filter(Number.isFinite)
+    if (!deadlines.length) return
+    const remaining = Math.min(...deadlines) - Date.now()
+    const timer = window.setTimeout(() => { if (!document.hidden) void refresh().catch(e => setError(String(e))) }, remaining > 0 ? Math.min(remaining + 250, 2147483647) : 30000)
+    return () => window.clearTimeout(timer)
+  }, [tasks, taskBusy, refresh])
+
   async function createNote() {
     try { const note = await newNote(); setSelectedNoteId(note.id); setNoteFilter('all'); setActiveView('notes') }
     catch (e) { setError(e instanceof Error ? e.message : String(e)) }

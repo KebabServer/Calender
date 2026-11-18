@@ -603,7 +603,13 @@ h1, h2, h3 { font-family: 'Manrope', 'DM Sans', sans-serif; letter-spacing: -.05
 .task-compose-details { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 160px); gap: 8px; margin-top: 8px; }
 .task-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; color: var(--muted); font-size: 12px; }
 .task-field-heading { display: flex; justify-content: space-between; align-items: center; height: 17px; }
-.task-field input, .task-field textarea { display: block; width: 100%; min-width: 0; max-width: 100%; min-height: 42px; padding: 9px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--input); color: var(--text); font-size: 16px; }
+.task-field input, .task-field textarea, .task-field select { display: block; width: 100%; min-width: 0; max-width: 100%; min-height: 42px; padding: 9px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--input); color: var(--text); font-size: 16px; }
+.task-weekly-toggle { display: flex; align-items: center; gap: 7px; width: fit-content; margin-top: 10px; font-size: 12px; color: var(--text-soft); }
+.task-weekly-toggle input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
+.task-weekly-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; margin-top: 8px; }
+.task-weekly-fields p { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: 10px; }
+.task-refresh { display: flex; align-items: center; gap: 4px; margin-top: 4px; color: var(--muted); font-size: 11px; }
+.task-completed .task-refresh { color: var(--faint); }
 .task-field textarea { resize: vertical; }
 .task-field input::-webkit-date-and-time-value { text-align: left; }
 .task-clear-date { display: inline-flex; padding: 0 2px; color: var(--muted); }

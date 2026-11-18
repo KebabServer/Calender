@@ -10,6 +10,7 @@ A calm, responsive personal notes-and-calendar app. Made with React, TypeScript,
 - 🔗 Link notes to events and jump between them
 - Calendar opens by default, with direct navigation to notes, to-do list, weather and settings
 - Add, edit, complete, reopen and delete private tasks with optional descriptions and due dates; filter Open, All or Done
+- Optional weekly task refresh at a chosen weekday and time, including while the app is closed
 - Helsinki weather with temperature, wind, humidity, rain/snow and a compact 12-hour forecast
 - 🌓 Light and dark themes; mobile navigation and responsive layouts
 - ☁️ Optional email/password accounts, Supabase-backed storage and cross-device sync
@@ -73,6 +74,16 @@ Open **To-do**, type a task and tap **+** (or press Enter). Use the checkbox to 
 **Description** and **Due date** are optional when adding or editing a task. They appear below its title and survive completion, reloads, and deletion Undo. Open tasks with a past due date are marked overdue. Due dates are calendar dates and do not shift between timezones. Use the small **×** beside Due date to remove it, or clear the description and save.
 
 Existing projects with the tasks table can run `supabase/migrations/20261118010802_add_task_details.sql` once to add these fields. The connected production project is already upgraded; fresh installations use the updated `supabase/schema.sql` or `supabase/tasks.sql`. This migration keeps existing tasks and ownership policies intact.
+
+### Weekly task refresh
+
+Turn on **Refresh weekly** when adding or editing a task, then choose **Refresh day** and **Time (Helsinki)**, for example **Monday, 17:45**. The task becomes open again at that time each week, keeping the same ID, description and due date. It does not create copies. Completed tasks stay visible until refreshed; open tasks remain open. Uncheck Refresh weekly and save to stop the schedule.
+
+Schedules use **Europe/Helsinki** even when travelling. They keep the chosen wall-clock time through daylight-saving changes. A time skipped by the spring clock change runs one hour later that day; an ambiguous autumn time runs on its later occurrence, once. Enabling a schedule whose time has already passed starts with next week's occurrence. Missed weeks reopen the task once, rather than creating a backlog.
+
+Cloud refreshes run through one private Supabase Cron worker every minute, so they work while the app is closed. An owner-scoped function also catches up overdue tasks when loading the list; open clients refresh at the next deadline and on return. Existing row-level ownership policies stay enabled. The cross-account worker is in the unexposed `daymark_private` schema and cannot be executed by `anon` or `authenticated`; all functions use `SECURITY INVOKER`.
+
+Existing projects can apply `supabase/migrations/20261118085901_weekly_task_refresh.sql` once. It enables `pg_cron` and installs the schedule fields, trigger and one-minute job; the connected production project is already upgraded. Fresh installations use the updated full schema/task scripts. Local demo mode catches up while the app is open or on next load; it has no background server.
 
 Fresh Supabase installations use `supabase/schema.sql`. Existing projects can run `supabase/tasks.sql` once; the connected production project is already upgraded.
 

@@ -16,7 +16,7 @@ try {
   if(url.pathname.includes('/rest/v1/tasks')) {
    if(method!=='DELETE'){
     const selected=url.searchParams.get('select')?.split(',')||[]
-    assert.ok(selected.includes('description')&&selected.includes('due_date'))
+    assert.ok(selected.includes('description')&&selected.includes('due_date')&&selected.includes('refresh_weekday')&&selected.includes('next_refresh_at'))
    }
    if(method==='POST') {
     if(fail)return r.fulfill({status:503,json:{message:'Temporary save failure'}})

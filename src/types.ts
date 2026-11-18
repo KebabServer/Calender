@@ -28,12 +28,16 @@ export type Task = {
   title: string
   description: string
   due_date: string | null // Calendar date, YYYY-MM-DD; no timezone conversion.
+  refresh_weekday: number | null // ISO weekday: Monday=1 through Sunday=7.
+  refresh_time: string | null
+  refresh_timezone: string
+  next_refresh_at: string | null
   completed: boolean
   created_at: string
   updated_at: string
 }
 
-export type TaskInput = Pick<Task, 'title' | 'description' | 'due_date'>
+export type TaskInput = Pick<Task, 'title' | 'description' | 'due_date' | 'refresh_weekday' | 'refresh_time' | 'refresh_timezone'>
 export type TaskUpdates = Partial<TaskInput & Pick<Task, 'completed'>>
 
 export type View = 'notes' | 'calendar' | 'tasks' | 'weather'

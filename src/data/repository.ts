@@ -1,6 +1,7 @@
 import { format, addDays, subDays, addHours } from 'date-fns'
 import type { CalendarEvent, EventInput, Note, Task, TaskInput, TaskUpdates } from '../types'
 import { weeklyCopies } from '../lib/events'
+import { nextTaskRefresh, refreshDemoTask, taskRefreshDue, TASK_TIMEZONE } from '../lib/task-refresh'
 import { supabase } from '../lib/supabase'
 
 export interface Repository {
@@ -46,7 +47,9 @@ function readDemo() {
     const raw = localStorage.getItem(DEMO_KEY)
     if (raw) {
       const value = JSON.parse(raw) as ReturnType<typeof demoSeed>
-      return { ...value, tasks: (value.tasks ?? []).map(task => ({ ...task, description: task.description ?? '', due_date: task.due_date ?? null })) }
+      return { ...value, tasks: (value.tasks ?? []).map(task => ({ ...task, description: task.description ?? '', due_date: task.due_date ?? null,
+        refresh_weekday: task.refresh_weekday ?? null, refresh_time: task.refresh_time ?? null,
+        refresh_timezone: task.refresh_timezone ?? TASK_TIMEZONE, next_refresh_at: task.next_refresh_at ?? null })) }
     }
   } catch { /* If storage is unavailable, seed fresh data */ }
   const value = demoSeed()
@@ -58,18 +61,27 @@ function writeDemo(value: ReturnType<typeof demoSeed>) {
 }
 
 export const demoRepository: Repository = {
-  async getTasks() { return readDemo().tasks },
+  async getTasks() {
+    const state = readDemo(), tasks = state.tasks.map(task => refreshDemoTask(task))
+    if (tasks.some((task, index) => task !== state.tasks[index])) writeDemo({ ...state, tasks })
+    return tasks
+  },
   async createTask(input) {
     const state = readDemo()
     const now = new Date().toISOString()
-    const task: Task = { ...input, id: crypto.randomUUID(), completed: false, created_at: now, updated_at: now }
+    const task: Task = { ...input, id: crypto.randomUUID(), completed: false, created_at: now, updated_at: now,
+      next_refresh_at: input.refresh_weekday !== null && input.refresh_time !== null ? nextTaskRefresh(input.refresh_weekday, input.refresh_time) : null }
     state.tasks.unshift(task); writeDemo(state); return task
   },
   async saveTask(id, updates) {
     const state = readDemo()
     const current = state.tasks.find(t => t.id === id)
     if (!current) throw new Error('Task not found')
-    const saved = { ...current, ...updates, updated_at: new Date().toISOString() }
+    const saved = { ...refreshDemoTask(current), ...updates, updated_at: new Date().toISOString() }
+    if (saved.refresh_weekday === null || saved.refresh_time === null) saved.next_refresh_at = null
+    else if (saved.refresh_weekday !== current.refresh_weekday || saved.refresh_time !== current.refresh_time || saved.refresh_timezone !== current.refresh_timezone) {
+      saved.next_refresh_at = nextTaskRefresh(saved.refresh_weekday, saved.refresh_time)
+    }
     state.tasks = state.tasks.map(t => t.id === id ? saved : t)
     writeDemo(state); return saved
   },
@@ -77,7 +89,8 @@ export const demoRepository: Repository = {
     const state = readDemo()
     const existing = state.tasks.find(t => t.id === task.id)
     if (existing) return existing
-    state.tasks.push(task); writeDemo(state); return task
+    const restored = refreshDemoTask(task)
+    state.tasks.push(restored); writeDemo(state); return restored
   },
   async removeTask(id) {
     const state = readDemo(); state.tasks = state.tasks.filter(t => t.id !== id); writeDemo(state)
@@ -144,11 +157,19 @@ function assertNoError(error: { message: string } | null) {
 export function createCloudRepository(userId: string): Repository {
   if (!supabase) throw new Error('Cloud is not configured')
   const client = supabase
-  const taskColumns = 'id,title,description,due_date,completed,created_at,updated_at'
+  const taskColumns = 'id,title,description,due_date,refresh_weekday,refresh_time,refresh_timezone,next_refresh_at,completed,created_at,updated_at'
   return {
     async getTasks() {
-      const { data, error } = await client.from('tasks').select(taskColumns).eq('user_id', userId).order('created_at', { ascending: false })
-      assertNoError(error); return (data || []) as Task[]
+      const read = () => client.from('tasks').select(taskColumns).eq('user_id', userId).order('created_at', { ascending: false })
+      const { data, error } = await read()
+      assertNoError(error)
+      if ((data as Task[] | null)?.some(task => taskRefreshDue(task))) {
+        const { error: refreshError } = await client.rpc('refresh_weekly_tasks')
+        assertNoError(refreshError)
+        const refreshed = await read()
+        assertNoError(refreshed.error); return (refreshed.data || []) as Task[]
+      }
+      return (data || []) as Task[]
     },
     async createTask(input) {
       const { data, error } = await client.from('tasks').insert({ ...input, user_id: userId, completed: false }).select(taskColumns).single()
@@ -160,7 +181,9 @@ export function createCloudRepository(userId: string): Repository {
     },
     async restoreTask(task) {
       // Ignore an existing ID: another device may have already restored/edited it.
-      const { data, error } = await client.from('tasks').upsert({ id: task.id, user_id: userId, title: task.title, description: task.description, due_date: task.due_date, completed: task.completed, created_at: task.created_at, updated_at: new Date().toISOString() }, { onConflict: 'id', ignoreDuplicates: true }).select(taskColumns)
+      const { data, error } = await client.from('tasks').upsert({ id: task.id, user_id: userId, title: task.title, description: task.description, due_date: task.due_date,
+        refresh_weekday: task.refresh_weekday, refresh_time: task.refresh_time, refresh_timezone: task.refresh_timezone, next_refresh_at: task.next_refresh_at,
+        completed: task.completed, created_at: task.created_at, updated_at: new Date().toISOString() }, { onConflict: 'id', ignoreDuplicates: true }).select(taskColumns)
       assertNoError(error)
       if (data?.[0]) return data[0] as Task
       const { data: existing, error: readError } = await client.from('tasks').select(taskColumns).eq('id', task.id).eq('user_id', userId).single()
