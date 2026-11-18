@@ -11,7 +11,7 @@ A calm, responsive personal notes-and-calendar app. Made with React, TypeScript,
 - Calendar opens by default, with direct navigation to notes, to-do list, weather and settings
 - Add, edit, complete, reopen and delete private tasks with optional descriptions and due dates; filter Open, All or Done
 - Optional weekly task refresh at a chosen weekday and time, including while the app is closed
-- Helsinki and Otaniemi weather with a compact 12-hour forecast and a Finnish Meteorological Institute rain radar link
+- Helsinki, Otaniemi, and Inkoo weather with a compact 12-hour forecast and a Finnish Meteorological Institute rain radar link
 - 🌓 Light and dark themes; mobile navigation and responsive layouts
 - ☁️ Optional email/password accounts, Supabase-backed storage and cross-device sync
 - 💾 Download a JSON backup of notes, events and tasks
@@ -89,7 +89,7 @@ Fresh Supabase installations use `supabase/schema.sql`. Existing projects can ru
 
 ## Weather
 
-Open **Weather** and choose **Helsinki** or **Otaniemi** for forecast conditions, temperature in °C, wind in m/s, humidity, and rain/snow amounts in mm. Helsinki is selected when the app starts. The next 12 hours appear at two-hour intervals, with all dates and times shown in **Europe/Helsinki**, independent of the device's timezone. Rain/snow labels state the forecast interval. Open **Sadetutka** for the Finnish Meteorological Institute's rain radar.
+Open **Weather** and choose **Helsinki**, **Otaniemi**, or **Inkoo** for forecast conditions, temperature in °C, wind in m/s, humidity, and rain/snow amounts in mm. Helsinki is selected when the app starts. The next 12 hours appear at two-hour intervals, with all dates and times shown in **Europe/Helsinki**, independent of the device's timezone. Rain/snow labels state the forecast interval. Open **Sadetutka** for the Finnish Meteorological Institute's rain radar.
 
 Forecast data comes from [MET Norway](https://www.met.no/en) under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The public API needs no key. Requests use fixed coordinates for the selected location and omit account credentials and personal app content. The browser identifies the public site via its Origin header. No location permission is requested. Browser HTTP caching respects the provider's cache headers. The view checks for updates every 15 minutes while visible and when returning to it, and has a manual Refresh button.
 

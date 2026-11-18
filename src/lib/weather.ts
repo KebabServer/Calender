@@ -3,6 +3,7 @@ export const HELSINKI_TIMEZONE = 'Europe/Helsinki'
 export const WEATHER_COORDINATES = {
   Helsinki: 'lat=60.1699&lon=24.9384',
   Otaniemi: 'lat=60.1850&lon=24.8270',
+  Inkoo: 'lat=60.0459&lon=24.0046',
 } as const
 
 export type WeatherLocation = keyof typeof WEATHER_COORDINATES
