@@ -36,6 +36,6 @@ export type Task = {
 export type TaskInput = Pick<Task, 'title' | 'description' | 'due_date'>
 export type TaskUpdates = Partial<TaskInput & Pick<Task, 'completed'>>
 
-export type View = 'notes' | 'calendar' | 'tasks'
+export type View = 'notes' | 'calendar' | 'tasks' | 'weather'
 export type NoteFilter = 'all' | 'pinned'
 export type EventInput = Omit<CalendarEvent, 'id' | 'created_at' | 'updated_at'>

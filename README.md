@@ -8,8 +8,9 @@ A calm, responsive personal notes-and-calendar app. Made with React, TypeScript,
 - 📅 Monthly calendar with create/edit/delete events, priorities, all-day events, and start times and durations in calendar cells
 - Clone events 1–10 weeks ahead as independent events, preserving times, colors, descriptions and linked notes
 - 🔗 Link notes to events and jump between them
-- Calendar opens by default, with direct navigation to notes, to-do list and settings
+- Calendar opens by default, with direct navigation to notes, to-do list, weather and settings
 - Add, edit, complete, reopen and delete private tasks with optional descriptions and due dates; filter Open, All or Done
+- Helsinki weather with temperature, wind, humidity, rain/snow and a compact 12-hour forecast
 - 🌓 Light and dark themes; mobile navigation and responsive layouts
 - ☁️ Optional email/password accounts, Supabase-backed storage and cross-device sync
 - 💾 Download a JSON backup of notes, events and tasks
@@ -74,6 +75,14 @@ Open **To-do**, type a task and tap **+** (or press Enter). Use the checkbox to 
 Existing projects with the tasks table can run `supabase/migrations/20261118010802_add_task_details.sql` once to add these fields. The connected production project is already upgraded; fresh installations use the updated `supabase/schema.sql` or `supabase/tasks.sql`. This migration keeps existing tasks and ownership policies intact.
 
 Fresh Supabase installations use `supabase/schema.sql`. Existing projects can run `supabase/tasks.sql` once; the connected production project is already upgraded.
+
+## Helsinki weather
+
+Open **Weather** for Helsinki's forecast conditions, temperature in °C, wind in m/s, humidity, and rain/snow amounts in mm. The next 12 hours appear at two-hour intervals, with all dates and times shown in **Europe/Helsinki**, independent of the device's timezone. Rain/snow labels state the forecast interval; amounts are not precipitation probabilities.
+
+Forecast data comes from [MET Norway](https://www.met.no/en) under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The public API needs no key. Requests use fixed Helsinki coordinates and omit account credentials and personal app content; the browser identifies the public site via its Origin header. No location permission is requested. Browser HTTP caching respects the provider's cache headers; the view checks for updates every 15 minutes while visible and when returning to it, and has a manual Refresh button.
+
+If a refresh fails, the last loaded forecast and its issue time stay visible with a warning. Initial failures have a retry action. Requests time out after 10 seconds, so weather cannot block navigation. Weather is kept in memory rather than stored in Supabase or included in personal-data backups.
 
 ## Saving and sync safeguards
 
