@@ -100,7 +100,9 @@ The watchlist syncs through your private account and refreshes when you open the
 
 ## Links in text
 
-Paste an `https://`, `http://`, or `www.` address in a note, event description, or task description. Open **Preview** in Notes, look under the event in the calendar's **Schedule**, or use the saved task in **To-do** to follow the link. Web links open separately so you can keep your place in Daymark.
+Saved notes open in **Preview**, including notes opened from the calendar. Select **Edit** to change the content. New notes open in **Edit**.
+
+Paste an `https://`, `http://`, or `www.` address in a note, event description, or task description. Follow the link from the note preview, the calendar's **Schedule**, or the saved task in **To-do**. Web links open separately so you can keep your place in Daymark.
 
 For a named link in a note, select some text, choose **Insert link**, and replace the selected address placeholder. You can also type Markdown such as `[Project page](https://example.com)`.
 

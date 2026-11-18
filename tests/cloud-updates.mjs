@@ -32,6 +32,8 @@ try {
  await page.goto(process.env.DAYMARK_BASE_URL || 'http://127.0.0.1:4173/Calender/',{waitUntil:'domcontentloaded'})
  await page.getByRole('navigation').getByRole('button',{name:'Notes',exact:true}).click()
  await page.locator('.note-list-card').filter({hasText:'Saved title'}).click()
+ assert.equal(await page.locator('.markdown-preview').textContent(),'Saved content')
+ await page.getByTitle('Edit Markdown').click()
  await page.getByLabel('Note content').fill('Unsaved private draft')
  await page.getByRole('alert').filter({hasText:'Could not save note'}).waitFor()
  latest=true
@@ -49,7 +51,7 @@ try {
  await page.locator('.calendar-controls h2').waitFor()
  await page.getByRole('navigation').getByRole('button',{name:'Notes',exact:true}).click()
  await page.locator('.note-list-card').filter({hasText:'Saved title'}).click()
- assert.equal(await page.getByLabel('Note content').inputValue(),'Unsaved private draft')
+ assert.equal(await page.locator('.markdown-preview').textContent(),'Unsaved private draft')
  assert.ok(await page.evaluate(()=>Boolean(localStorage.getItem('sb-tktgencmwtanxjfkiadc-auth-token'))))
  assert.ok(attempts>=3)
  console.log('PASS: failed saves block updates, focus refresh keeps drafts, retry saves before reload, and sign-in storage survives')

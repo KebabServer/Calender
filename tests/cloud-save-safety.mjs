@@ -53,6 +53,7 @@ async function setup() {
   const nav = page.getByRole('navigation')
   await nav.getByRole('button',{name:'Notes',exact:true}).click()
   await page.locator('.note-list-card').filter({hasText:'Review note'}).click()
+  await page.getByTitle('Edit Markdown').click()
   return {page,state,nav}
 }
 

@@ -47,7 +47,7 @@ test('an update waits for event drafts and flushes pending notes before reload',
   await expect(page.locator('.calendar-controls h2')).toBeVisible()
   await page.getByRole('navigation').getByRole('button', { name: 'Notes', exact: true }).click()
   await page.locator('.note-list-card').filter({ hasText: 'Update draft' }).click()
-  await expect(page.getByLabel('Note content')).toHaveValue('Text immediately before update')
+  await expect(page.locator('.markdown-preview')).toHaveText('Text immediately before update')
 })
 
 test('invalid version responses leave the existing app usable', async ({ page }) => {

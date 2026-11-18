@@ -57,7 +57,8 @@ function Workspace({ session, update }: { session: Session | null; update: strin
   const [watchlistPending, setWatchlistPending] = useState(false)
   const taskRevision = useRef(0)
   const [events, setEvents] = useState<CalendarEvent[]>([])
-  const [selectedNoteId, setSelectedNoteId] = useState<string|null>(null)
+  const [noteSelection, setNoteSelection] = useState<{ id: string; preview: boolean } | null>(null)
+  const selectedNoteId = noteSelection?.id ?? null
   const [noteFilter, setNoteFilter] = useState<NoteFilter>('all')
   const [month, setMonth] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState(new Date())
@@ -128,13 +129,23 @@ function Workspace({ session, update }: { session: Session | null; update: strin
   }, [tasks, taskBusy, refresh])
 
   async function createNote() {
-    try { const note = await newNote(); setSelectedNoteId(note.id); setNoteFilter('all'); setActiveView('notes') }
+    try { const note = await newNote(); setNoteSelection({ id: note.id, preview: false }); setNoteFilter('all'); setActiveView('notes') }
     catch (e) { setError(e instanceof Error ? e.message : String(e)) }
+  }
+  function selectNote(id: string | null) {
+    setNoteSelection(id ? { id, preview: true } : null)
+  }
+  function setNotePreview(preview: boolean) {
+    setNoteSelection(current => current ? { ...current, preview } : null)
+  }
+  function navigate(view: View) {
+    if (view === 'notes' && activeView !== 'notes') setNotePreview(true)
+    setActiveView(view)
   }
   async function deleteNote(id: string) {
     if (!window.confirm('Delete this note? This cannot be undone.')) return
     eventRevision.current++; eventOperations.current++
-    try { await removeNote(id); setEvents(old => old.map(e => e.note_id === id ? { ...e, note_id: null } : e)); setSelectedNoteId(null) }
+    try { await removeNote(id); setEvents(old => old.map(e => e.note_id === id ? { ...e, note_id: null } : e)); setNoteSelection(null) }
     catch (e) { setError(e instanceof Error ? e.message : String(e)) }
     finally { eventRevision.current++; eventOperations.current-- }
   }
@@ -156,7 +167,7 @@ function Workspace({ session, update }: { session: Session | null; update: strin
     try { await repository.removeEvent(id); setEvents(old => old.filter(e => e.id !== id)) }
     finally { eventRevision.current++; eventOperations.current-- }
   }
-  function openNote(id: string) { setActiveView('notes'); setSelectedNoteId(id); setNoteFilter('all') }
+  function openNote(id: string) { setActiveView('notes'); selectNote(id); setNoteFilter('all') }
   async function addTask(input: TaskInput) {
     setTaskBusy(true); taskRevision.current++
     try {
@@ -251,9 +262,9 @@ function Workspace({ session, update }: { session: Session | null; update: strin
   return <div className="app-shell">
     {update && !undoTasks.length && <UpdateNotice disabled={Boolean(dialog) || taskBusy || taskDraftDirty || watchlistPending} onUpdate={() => void applyUpdate()}/>}
     {undoTasks.length > 0 && <div className="undo-notice" role="status"><span>{undoTasks.length === 1 ? 'Task deleted.' : `${undoTasks.length} tasks deleted.`}</span><button className="button primary" disabled={taskBusy} onClick={() => void undoTaskDeletion()}>Undo</button><button className="icon-button" disabled={taskBusy} aria-label="Dismiss undo" onClick={() => setUndoTasks([])}><X size={16}/></button></div>}
-    <Sidebar active={activeView} onNavigate={setActiveView} onOpenSettings={() => setSettingsOpen(true)}/>
+    <Sidebar active={activeView} onNavigate={navigate} onOpenSettings={() => setSettingsOpen(true)}/>
     <main className="app-main">
-      {loading ? <div className="content-loading"><LoaderCircle size={27} className="spin"/><span>Loading...</span></div> : <><WatchlistView active={activeView === 'watchlist'} repository={repository} onPendingChange={setWatchlistPending}/><TasksView active={activeView === 'tasks'} tasks={tasks} busy={taskBusy} onDraftChange={setTaskDraftDirty} onAdd={addTask} onChange={changeTask} onDelete={deleteTask}/>{activeView === 'notes' ? <NotesView notes={notes} selectedId={selectedNoteId} onSelect={setSelectedNoteId} onCreate={() => void createNote()} onEdit={editNote} onDelete={id => void deleteNote(id)} filter={noteFilter} onFilter={setNoteFilter} saveStatus={selectedNoteId ? noteStatus(selectedNoteId) : 'saved'} onRetrySave={() => { setError(''); void flushNotes().catch(() => {}) }}/> : activeView === 'calendar' ? <CalendarView month={month} onMonth={setMonth} selectedDate={selectedDate} onSelectDate={setSelectedDate} events={events} notes={notes} onCreate={() => setDialog({ date: formatDay(selectedDate), event: null })} onOpenEvent={e => setDialog({ date: e.event_date, event: e })} onOpenNote={openNote}/> : activeView === 'weather' ? <WeatherView location={weatherLocation} onLocationChange={setWeatherLocation}/> : null}</>}
+      {loading ? <div className="content-loading"><LoaderCircle size={27} className="spin"/><span>Loading...</span></div> : <><WatchlistView active={activeView === 'watchlist'} repository={repository} onPendingChange={setWatchlistPending}/><TasksView active={activeView === 'tasks'} tasks={tasks} busy={taskBusy} onDraftChange={setTaskDraftDirty} onAdd={addTask} onChange={changeTask} onDelete={deleteTask}/>{activeView === 'notes' ? <NotesView notes={notes} selectedId={selectedNoteId} onSelect={selectNote} preview={noteSelection?.preview ?? true} onPreviewChange={setNotePreview} onCreate={() => void createNote()} onEdit={editNote} onDelete={id => void deleteNote(id)} filter={noteFilter} onFilter={setNoteFilter} saveStatus={selectedNoteId ? noteStatus(selectedNoteId) : 'saved'} onRetrySave={() => { setError(''); void flushNotes().catch(() => {}) }}/> : activeView === 'calendar' ? <CalendarView month={month} onMonth={setMonth} selectedDate={selectedDate} onSelectDate={setSelectedDate} events={events} notes={notes} onCreate={() => setDialog({ date: formatDay(selectedDate), event: null })} onOpenEvent={e => setDialog({ date: e.event_date, event: e })} onOpenNote={openNote}/> : activeView === 'weather' ? <WeatherView location={weatherLocation} onLocationChange={setWeatherLocation}/> : null}</>}
     </main>
     {dialog && <EventDialog key={dialog.event?.id || `new-${dialog.date}`} event={dialog.event} date={dialog.date} notes={notes} onClose={() => setDialog(null)} onSave={saveEvent} onDelete={deleteEvent}/>}
     {settingsOpen && <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) setSettingsOpen(false) }}><section className="settings-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-title"><div className="settings-header"><div><h2 id="settings-title">Settings</h2></div><button className="icon-button" onClick={() => setSettingsOpen(false)} aria-label="Close settings"><X size={20}/></button></div><div className="settings-status"><div className="settings-status-icon">{cloudEnabled ? <Cloud size={24}/> : <CloudOff size={24}/>}</div><div><strong>{cloudEnabled ? 'Cloud sync enabled' : 'Local demo mode'}</strong><p>{cloudEnabled ? `Signed in as ${session?.user.email}. Your content is stored privately in Supabase.` : 'Your content is stored in this browser only. They will NOT sync between devices until you configure Supabase.'}</p></div></div><button className="settings-row" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}><Moon size={19}/><span>Appearance <small>{theme === 'dark' ? 'Dark mode' : 'Light mode'}</small></span><ArrowUpRight size={17}/></button><button className="settings-row" onClick={() => void exportData()}><Download size={19}/><span>Export your data <small>Download your Daymark data as JSON</small></span><ArrowUpRight size={17}/></button>{!cloudEnabled && <div className="settings-hint">To enable cross-device login, follow the <strong>README.md</strong>, set up Supabase, and redeploy. Demo data won't automatically migrate to your new account.</div>}{cloudEnabled && <button className="settings-row signout" onClick={() => void signOut()}><LogOut size={19}/><span>Sign out <small>End your session on this device</small></span><ArrowUpRight size={17}/></button>}</section></div>}
