@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowUpRight, Check, ChevronDown, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { ArrowUpRight, Check, ChevronDown, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import type { Repository } from '../data/repository'
 import type { WatchItem } from '../types'
@@ -38,6 +38,7 @@ export function WatchlistView({ active, repository, onPendingChange }: Props) {
   const [descriptionOpen, setDescriptionOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [filter, setFilter] = useState<keyof typeof filters>('all')
+  const [search, setSearch] = useState('')
   const request = useRef(0)
   const writing = useRef(false)
   const hasDraft = Boolean(title.trim() || description.trim() || editingId || kind !== 'movie')
@@ -137,7 +138,12 @@ export function WatchlistView({ active, repository, onPendingChange }: Props) {
   }
 
   if (!active) return null
-  const visible = items?.filter(item => filter === 'all' || statusOf(item) === filter) ?? []
+  const query = search.trim().toLowerCase()
+  const visible = (items ?? [])
+    .map(item => ({ item, status: statusOf(item) }))
+    .filter(({ item, status }) => (filter === 'all' || status === filter)
+      && (!query || item.title.toLowerCase().includes(query) || item.description.toLowerCase().includes(query)))
+    .sort((a, b) => Number(b.status === 'in_progress') - Number(a.status === 'in_progress'))
 
   return <section className="watchlist-view" aria-labelledby="watchlist-title">
     <h1 id="watchlist-title">Watchlist</h1>
@@ -162,24 +168,31 @@ export function WatchlistView({ active, repository, onPendingChange }: Props) {
     {error && <p className="form-error" role="alert">{error}</p>}
     {!items && !loadError && <p className="watchlist-empty" role="status">Loading watchlist…</p>}
     {items && <>
+      <label className="search-input watchlist-search">
+        <Search size={16} aria-hidden="true"/>
+        <input type="search" aria-label="Search watchlist" placeholder="Search watchlist…" value={search} onChange={event => setSearch(event.target.value)}/>
+      </label>
       <div className="watchlist-filters" role="group" aria-label="Watchlist filters">
         {(Object.keys(filters) as (keyof typeof filters)[]).map(value => <button key={value} aria-pressed={filter === value} onClick={() => setFilter(value)}>{filters[value]}</button>)}
       </div>
-      <ul className="watchlist-items">{visible.map(item => <li className="watchlist-row" key={item.id}>
+      <ul className="watchlist-items">{visible.map(({ item, status }) => <li className="watchlist-row" key={item.id}>
         <div className="watchlist-entry">
-          <strong>{item.title}</strong>
+          <div className="watchlist-entry-title">
+            <strong>{item.title}</strong>
+            {status === 'in_progress' && <span className="watchlist-watching">Watching</span>}
+          </div>
           <span>{kinds[item.kind]} · <WebLink className="watchlist-imdb" href={`https://www.imdb.com/find/?${new URLSearchParams({ q: item.title, s: 'tt' })}`} aria-label={`Search IMDb for ${item.title}`}>
             IMDb <ArrowUpRight size={12} aria-hidden="true"/>
           </WebLink>{item.watched_on && <> · <time dateTime={item.watched_on}>{format(parseISO(item.watched_on), 'd MMM yyyy')}</time></>}</span>
         </div>
-        <select className="watchlist-status" value={statusOf(item)} disabled={busy} aria-label={`Status for ${item.title}`} onChange={event => changeStatus(item, event.target.value as Status)}>
+        <select className="watchlist-status" value={status} disabled={busy} aria-label={`Status for ${item.title}`} onChange={event => changeStatus(item, event.target.value as Status)}>
           {Object.entries(statuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </select>
         <button className="icon-button" disabled={busy || hasDraft} aria-label={`Edit ${item.title}`} onClick={() => edit(item)}><Pencil size={15}/></button>
         <button className="icon-button" disabled={busy} aria-label={`Remove ${item.title}`} onClick={() => remove(item)}><Trash2 size={15}/></button>
         {item.description && <p className="watchlist-description"><LinkedText text={item.description}/></p>}
       </li>)}</ul>
-      {!visible.length && <p className="watchlist-empty">{emptyMessages[filter]}</p>}
+      {!visible.length && <p className="watchlist-empty" role="status">{query ? 'No matching titles.' : emptyMessages[filter]}</p>}
     </>}
   </section>
 }

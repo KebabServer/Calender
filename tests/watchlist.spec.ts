@@ -128,3 +128,47 @@ test('older watchlists keep finished dates and send unfinished titles to Queue',
   await page.getByRole('button', { name: 'Edit Previously queued' }).click()
   await expect(page.getByRole('textbox', { name: 'Description', exact: true })).toHaveValue('')
 })
+
+test('Watching titles appear first and search works within the current filter', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 })
+  await page.goto('./', { waitUntil: 'domcontentloaded' })
+  await expect(page.locator('.calendar-controls h2')).toBeVisible()
+  await page.evaluate(() => {
+    const key = 'daymark_demo_v1'
+    const state = JSON.parse(localStorage.getItem(key)!)
+    state.watchlist = [
+      { id: 'arrival', title: 'Arrival', kind: 'movie', description: 'Alien language', started: false, watched_on: null, created_at: '2026-11-04T15:00:00Z' },
+      { id: 'severance', title: 'Severance', kind: 'show', description: 'Office mystery', started: true, watched_on: null, created_at: '2026-11-03T15:00:00Z' },
+      { id: 'dune', title: 'Dune', kind: 'movie', description: 'Galactic politics', started: true, watched_on: '2026-11-06', created_at: '2026-11-02T15:00:00Z' },
+      { id: 'foundation', title: 'Foundation', kind: 'show', description: 'Galactic empire', started: true, watched_on: null, created_at: '2026-11-01T15:00:00Z' },
+    ]
+    localStorage.setItem(key, JSON.stringify(state))
+  })
+  await page.getByRole('button', { name: 'Watchlist', exact: true }).click()
+  const search = page.getByRole('searchbox', { name: 'Search watchlist' })
+  const titles = page.locator('.watchlist-entry strong')
+  const watching = page.getByText('Watching', { exact: true })
+  await expect(search).toBeInViewport({ ratio: 1 })
+  await expect(titles).toHaveText(['Severance', 'Foundation', 'Arrival', 'Dune'])
+  await expect(watching).toHaveCount(2)
+  await expect(page.getByRole('listitem').filter({ hasText: 'Dune' }).getByText('Watching', { exact: true })).toHaveCount(0)
+
+  await search.fill('  GALACTIC  ')
+  await expect(titles).toHaveText(['Foundation', 'Dune'])
+  await page.getByRole('button', { name: 'Finished', exact: true }).click()
+  await expect(titles).toHaveText(['Dune'])
+  await page.getByRole('button', { name: 'Queue', exact: true }).click()
+  await expect(page.getByRole('status')).toHaveText('No matching titles.')
+  await search.fill('arriv')
+  await expect(titles).toHaveText(['Arrival'])
+
+  await search.fill('')
+  await page.getByRole('button', { name: 'All', exact: true }).click()
+  await page.getByRole('combobox', { name: 'Status for Arrival' }).selectOption('in_progress')
+  await expect(titles).toHaveText(['Arrival', 'Severance', 'Foundation', 'Dune'])
+  await expect(watching).toHaveCount(3)
+  await page.getByRole('combobox', { name: 'Status for Arrival' }).selectOption('queued')
+  await expect(titles).toHaveText(['Severance', 'Foundation', 'Arrival', 'Dune'])
+  await expect(watching).toHaveCount(2)
+  expect(await page.locator('main').evaluate(el => el.scrollWidth <= el.clientWidth)).toBeTruthy()
+})
