@@ -1,4 +1,4 @@
-import { CalendarDays, NotebookPen, Settings2, ListTodo, CloudSun, Film } from 'lucide-react'
+import { CalendarDays, NotebookPen, Settings2, ListTodo, CloudSun, Film, Utensils } from 'lucide-react'
 import type { View } from '../types'
 
 type Props = {
@@ -14,6 +14,7 @@ export function Sidebar({ active, onNavigate, onOpenSettings }: Props) {
       <button aria-current={active === 'notes' ? 'page' : undefined} onClick={() => onNavigate('notes')}><NotebookPen size={17}/>Notes</button>
       <button aria-current={active === 'tasks' ? 'page' : undefined} onClick={() => onNavigate('tasks')}><ListTodo size={17}/>To-do</button>
       <button aria-current={active === 'weather' ? 'page' : undefined} onClick={() => onNavigate('weather')}><CloudSun size={17}/>Weather</button>
+      <button aria-current={active === 'food' ? 'page' : undefined} onClick={() => onNavigate('food')}><Utensils size={17}/>Food</button>
       <button aria-current={active === 'watchlist' ? 'page' : undefined} onClick={() => onNavigate('watchlist')}><Film size={17}/>Watchlist</button>
     </nav>
     <button className="icon-button" aria-label="Settings" onClick={onOpenSettings}><Settings2 size={20}/></button>

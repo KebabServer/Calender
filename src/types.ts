@@ -55,6 +55,6 @@ export type WatchItem = {
 export type WatchInput = Pick<WatchItem, 'title' | 'kind' | 'description' | 'season' | 'episode'>
 export type WatchUpdates = Partial<WatchInput & Pick<WatchItem, 'started' | 'currently_watching' | 'watched_on'>>
 
-export type View = 'notes' | 'calendar' | 'tasks' | 'weather' | 'watchlist'
+export type View = 'notes' | 'calendar' | 'tasks' | 'weather' | 'food' | 'watchlist'
 export type NoteFilter = 'all' | 'pinned'
 export type EventInput = Omit<CalendarEvent, 'id' | 'created_at' | 'updated_at'>

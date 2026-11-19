@@ -11,7 +11,7 @@ test('watchlist tracks titles, descriptions and IMDb links at 320px', async ({ p
   await page.goto('./', { waitUntil: 'domcontentloaded' })
   await expect(page.locator('.calendar-controls h2')).toBeVisible()
   const nav = page.getByRole('navigation', { name: 'Main navigation' })
-  for (const name of ['Calendar', 'Notes', 'To-do', 'Weather', 'Watchlist']) {
+  for (const name of ['Calendar', 'Notes', 'To-do', 'Weather', 'Food', 'Watchlist']) {
     await expect(nav.getByRole('button', { name, exact: true })).toBeInViewport({ ratio: 1 })
   }
   const settings = page.getByRole('button', { name: 'Settings', exact: true })

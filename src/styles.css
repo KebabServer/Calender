@@ -751,3 +751,21 @@ h1, h2, h3 { font-family: 'Manrope', 'DM Sans', sans-serif; letter-spacing: -.05
   .workspace-header { padding: 0 8px; gap: 4px; }
   .workspace-tabs button { flex: 1; min-width: 0; min-height: 44px; justify-content: center; flex-direction: column; padding: 4px 1px; gap: 2px; font-size: 10px; }
 }
+
+.food-view { width: 100%; max-width: 820px; margin: 0 auto; padding: 24px; }
+.food-heading { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.food-heading h1 { margin: 0; font-size: 26px; }
+.food-heading time { margin-left: auto; color: var(--muted); font-size: 12px; }
+.food-notice { margin: 0 0 10px; color: var(--muted); font-size: 12px; }
+.food-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; align-items: start; }
+.food-card { padding: 11px 14px; }
+.food-card h2 { margin: 0; font-size: 15px; }
+.food-card h2 a { display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 28px; }
+.food-card h2 a:hover { text-decoration: underline; }
+.food-card h2 svg { color: var(--muted); flex: none; }
+.food-card ul { list-style: none; margin: 3px 0 0; padding: 0; }
+.food-card li { display: grid; gap: 3px; padding: 6px 0; border-top: 1px solid var(--border-soft); overflow-wrap: anywhere; font-size: 13px; line-height: 1.35; }
+.food-card li small, .food-card p { color: var(--muted); font-size: 11px; }
+.food-card p { margin: 5px 0 0; }
+@media (max-width: 700px) { .food-view { padding: 18px 12px; } }
+@media (max-width: 500px) { .food-grid { grid-template-columns: minmax(0, 1fr); } }

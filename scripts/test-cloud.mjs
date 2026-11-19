@@ -17,7 +17,7 @@ try {
     await new Promise(resolve => setTimeout(resolve,100))
   }
   if (!ready) throw new Error('Cloud test preview did not start')
-  for (const file of ['cloud-save-safety.mjs','cloud-updates.mjs','cloud-tasks.mjs','cloud-task-refresh.mjs','security-cloud.mjs','cloud-weekly.mjs','cloud-watchlist.mjs']) {
+  for (const file of ['food-sources.mjs','cloud-save-safety.mjs','cloud-updates.mjs','cloud-tasks.mjs','cloud-task-refresh.mjs','security-cloud.mjs','cloud-weekly.mjs','cloud-watchlist.mjs','cloud-food.mjs']) {
     const {stdout,stderr} = await exec(process.execPath, [`tests/${file}`], {
       env:{...process.env, PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || chromium.executablePath()},
       timeout:90000,

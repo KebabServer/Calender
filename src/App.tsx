@@ -7,6 +7,7 @@ import { CalendarView } from './components/CalendarView'
 import { EventDialog } from './components/EventDialog'
 import { TasksView } from './components/TasksView'
 import { WeatherView } from './components/WeatherView'
+import { FoodView } from './components/FoodView'
 import { WatchlistView } from './components/WatchlistView'
 import { NotesView } from './components/NotesView'
 import { UpdateNotice } from './components/UpdateNotice'
@@ -254,7 +255,7 @@ function Workspace({ session, update }: { session: Session | null; update: strin
   }
 
   useEffect(() => {
-    if (update && navigator.onLine && !updating && !signingOut && !undoTasks.length && !loading && !saving && !taskBusy && !taskDraftDirty && !watchlistPending && !dialog && !settingsOpen && (activeView === 'calendar' || activeView === 'weather')
+    if (update && navigator.onLine && !updating && !signingOut && !undoTasks.length && !loading && !saving && !taskBusy && !taskDraftDirty && !watchlistPending && !dialog && !settingsOpen && (activeView === 'calendar' || activeView === 'weather' || activeView === 'food')
       && !hasUnsaved
       && new URL(window.location.href).searchParams.get('daymark_release') !== update) {
       window.location.replace(updateUrl(update))
@@ -273,7 +274,7 @@ function Workspace({ session, update }: { session: Session | null; update: strin
     {undoTasks.length > 0 && <div className="undo-notice" role="status"><span>{undoTasks.length === 1 ? 'Task deleted.' : `${undoTasks.length} tasks deleted.`}</span><button className="button primary" disabled={taskBusy} onClick={() => void undoTaskDeletion()}>Undo</button><button className="icon-button" disabled={taskBusy} aria-label="Dismiss undo" onClick={() => setUndoTasks([])}><X size={16}/></button></div>}
     <Sidebar active={activeView} onNavigate={navigate} onOpenSettings={() => setSettingsOpen(true)}/>
     <main className="app-main">
-      {loading ? <div className="content-loading"><LoaderCircle size={27} className="spin"/><span>Loading...</span></div> : <><WatchlistView active={activeView === 'watchlist'} repository={repository} onPendingChange={setWatchlistPending}/><TasksView active={activeView === 'tasks'} tasks={tasks} busy={taskBusy} onDraftChange={setTaskDraftDirty} onAdd={addTask} onChange={changeTask} onDelete={deleteTask}/>{activeView === 'notes' ? <NotesView notes={notes} selectedId={selectedNoteId} onSelect={selectNote} preview={noteSelection?.preview ?? true} onPreviewChange={setNotePreview} onCreate={() => void createNote()} onEdit={editNote} onDelete={id => void deleteNote(id)} filter={noteFilter} onFilter={setNoteFilter} saveStatus={selectedNoteId ? noteStatus(selectedNoteId) : 'saved'} onRetrySave={() => { setError(''); void flushNotes().catch(() => {}) }}/> : activeView === 'calendar' ? <CalendarView month={month} onMonth={setMonth} selectedDate={selectedDate} onSelectDate={setSelectedDate} events={events} notes={notes} agendaEnabled={agendaEnabled} onCreate={day => setDialog({ date: formatDay(day), event: null })} onOpenEvent={e => setDialog({ date: e.event_date, event: e })} onOpenNote={openNote}/> : activeView === 'weather' ? <WeatherView location={weatherLocation} onLocationChange={setWeatherLocation}/> : null}</>}
+      {loading ? <div className="content-loading"><LoaderCircle size={27} className="spin"/><span>Loading...</span></div> : <><WatchlistView active={activeView === 'watchlist'} repository={repository} onPendingChange={setWatchlistPending}/><TasksView active={activeView === 'tasks'} tasks={tasks} busy={taskBusy} onDraftChange={setTaskDraftDirty} onAdd={addTask} onChange={changeTask} onDelete={deleteTask}/>{activeView === 'notes' ? <NotesView notes={notes} selectedId={selectedNoteId} onSelect={selectNote} preview={noteSelection?.preview ?? true} onPreviewChange={setNotePreview} onCreate={() => void createNote()} onEdit={editNote} onDelete={id => void deleteNote(id)} filter={noteFilter} onFilter={setNoteFilter} saveStatus={selectedNoteId ? noteStatus(selectedNoteId) : 'saved'} onRetrySave={() => { setError(''); void flushNotes().catch(() => {}) }}/> : activeView === 'calendar' ? <CalendarView month={month} onMonth={setMonth} selectedDate={selectedDate} onSelectDate={setSelectedDate} events={events} notes={notes} agendaEnabled={agendaEnabled} onCreate={day => setDialog({ date: formatDay(day), event: null })} onOpenEvent={e => setDialog({ date: e.event_date, event: e })} onOpenNote={openNote}/> : activeView === 'weather' ? <WeatherView location={weatherLocation} onLocationChange={setWeatherLocation}/> : activeView === 'food' ? <FoodView/> : null}</>}
     </main>
     {dialog && <EventDialog key={dialog.event?.id || `new-${dialog.date}`} event={dialog.event} date={dialog.date} notes={notes} onClose={() => setDialog(null)} onSave={saveEvent} onDelete={deleteEvent}/>}
     {settingsOpen && <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) setSettingsOpen(false) }}>

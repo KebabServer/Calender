@@ -8,13 +8,14 @@ A calm, responsive personal notes-and-calendar app. Made with React, TypeScript,
 - 📅 Monthly calendar with create/edit/delete events, priorities, all-day events, and start times and durations in calendar cells
 - Clone events 1–10 weeks ahead as independent events, preserving times, colors, descriptions and linked notes
 - 🔗 Link notes to events and jump between them
-- Calendar opens by default, with direct navigation to notes, to-do list, weather, watchlist and settings
+- Calendar opens by default, with direct navigation to notes, to-do list, weather, food, watchlist and settings
 - Optional seven-day agenda and event search across months
 - Add, edit, complete, reopen and delete private tasks with optional descriptions and due dates; filter Open, All or Done
 - Optional weekly task refresh at a chosen weekday and time, including while the app is closed
 - Track movies and TV shows with Queue, Currently watching, In progress, and Finished filters and finish dates
 - Record the last watched season and episode for TV shows
 - Helsinki, Otaniemi, and Inkoo weather with a compact 12-hour forecast and a Finnish Meteorological Institute rain radar link
+- Today's Finnish lunch menus for Täffä, A Bloc, UniCafe Meilahti and UniCafe Kaivopiha
 - 🌓 Light and dark themes; mobile navigation and responsive layouts
 - ☁️ Optional email/password accounts, Supabase-backed storage and cross-device sync
 - 💾 Download a JSON backup of notes, events, tasks, and watchlist entries
@@ -117,6 +118,16 @@ Open **Weather** and choose **Helsinki**, **Otaniemi**, or **Inkoo** for forecas
 Forecast data comes from [MET Norway](https://www.met.no/en) under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The public API needs no key. Requests use fixed coordinates for the selected location and omit account credentials and personal app content. The browser identifies the public site via its Origin header. No location permission is requested. Browser HTTP caching respects the provider's cache headers. The view checks for updates every 15 minutes while visible and when returning to it, and has a manual Refresh button.
 
 If a refresh fails, the last loaded forecast and its issue time stay visible with a warning. Initial failures have a retry action. Requests time out after 10 seconds, so weather cannot block navigation. Weather is kept in memory rather than stored in Supabase or included in personal-data backups.
+
+## Food
+
+Open **Food** to see today's lunch menus in Finnish. The date follows **Europe/Helsinki**. The restaurant headings link to the official menus, where you can check opening hours, prices and ingredients. The refresh button reloads the most recent available menus.
+
+The `lunch-menus` Supabase Edge Function uses the project's browser key and reads fixed public feeds without accessing the database or receiving the signed-in user's token. Each restaurant shows a separate status if its menu is missing or its feed is unavailable. [Täffä](https://lunch.tf.fi/) · [Compass Group](https://www.compass-group.fi/abloc) · [UniCafe](https://menu.unicafe.fi/)
+
+The connected production project has the function deployed. For another deployment, deploy `supabase/functions/lunch-menus` with `--no-verify-jwt` so the function can validate the browser key itself. Adjust its allowed origin for your site. The tab shows official menu links in demo mode without Supabase configuration.
+
+Run the provider-adapter checks with Node.js 22.18 or later using `node --test tests/food-sources.mjs`.
 
 ## Saving and sync safeguards
 
