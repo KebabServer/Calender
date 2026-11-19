@@ -62,6 +62,16 @@ export function menuDate(now = new Date()): string {
   return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Helsinki', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now)
 }
 
+export function menuWeekDates(today: string): string[] {
+  const day = new Date(`${today}T12:00:00Z`)
+  const count = 1 + (7 - day.getUTCDay()) % 7
+  return Array.from({ length: count }, () => {
+    const date = day.toISOString().slice(0, 10)
+    day.setUTCDate(day.getUTCDate() + 1)
+    return date
+  })
+}
+
 async function getJSON(url: string, request: typeof fetch): Promise<unknown> {
   const response = await request(url, {
     headers: { Accept: 'application/json' },

@@ -121,7 +121,7 @@ If a refresh fails, the last loaded forecast and its issue time stay visible wit
 
 ## Food
 
-Open **Food** to see today's lunch menus in Finnish. The date follows **Europe/Helsinki**. The restaurant headings link to the official menus, where you can check opening hours, prices and ingredients. The refresh button reloads the most recent available menus.
+Open **Food** to see lunch menus in Finnish. Use the buttons at the top to choose a day from today through Sunday in **Europe/Helsinki**. The restaurant headings link to the official menus, where you can check opening hours, prices and ingredients. The refresh button reloads the selected day's menus.
 
 The `lunch-menus` Supabase Edge Function uses the project's browser key and reads fixed public feeds without accessing the database or receiving the signed-in user's token. Each restaurant shows a separate status if its menu is missing or its feed is unavailable. [Täffä](https://lunch.tf.fi/) · [Compass Group](https://www.compass-group.fi/abloc) · [UniCafe](https://menu.unicafe.fi/)
 

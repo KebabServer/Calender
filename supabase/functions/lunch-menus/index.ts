@@ -1,13 +1,19 @@
-import { loadDailyMenus, menuDate, type DailyMenus } from './menus.ts'
+import { loadDailyMenus, menuDate, menuWeekDates, type DailyMenus } from './menus.ts'
 
 const publishableKeys = Object.values(JSON.parse(Deno.env.get('SUPABASE_PUBLISHABLE_KEYS') ?? '{}'))
 const anonKey = Deno.env.get('SUPABASE_ANON_KEY')
-let cached: { date: string; expiresAt: number; menus: Promise<DailyMenus> } | undefined
+let cacheDay: string | undefined
+const cached = new Map<string, { expiresAt: number; menus: Promise<DailyMenus> }>()
 
-function dailyMenus(date: string): Promise<DailyMenus> {
-  if (cached?.date === date && cached.expiresAt > Date.now()) return cached.menus
-  const entry = { date, expiresAt: Date.now() + 15_000, menus: loadDailyMenus(date) }
-  cached = entry
+function dailyMenus(date: string, today: string): Promise<DailyMenus> {
+  if (cacheDay !== today) {
+    cached.clear()
+    cacheDay = today
+  }
+  const previous = cached.get(date)
+  if (previous && previous.expiresAt > Date.now()) return previous.menus
+  const entry = { expiresAt: Date.now() + 15_000, menus: loadDailyMenus(date) }
+  cached.set(date, entry)
   void entry.menus.then(result => {
     entry.expiresAt = Date.now() + (Object.values(result.menus).some(menu => menu === null) ? 30_000 : 300_000)
   })
@@ -40,5 +46,10 @@ Deno.serve(async request => {
     return Response.json({ error: 'A project publishable key is required.' }, { status: 401, headers })
   }
 
-  return Response.json(await dailyMenus(menuDate()), { headers })
+  const today = menuDate()
+  const date = new URL(request.url).searchParams.get('date') ?? today
+  if (!menuWeekDates(today).includes(date)) {
+    return Response.json({ error: 'Choose a date from today through Sunday.' }, { status: 400, headers })
+  }
+  return Response.json(await dailyMenus(date, today), { headers })
 })

@@ -1,4 +1,5 @@
 import type { DailyMenus } from '../../supabase/functions/lunch-menus/menus'
+export { menuWeekDates } from '../../supabase/functions/lunch-menus/menus'
 
 export const restaurants = [
   { id: 'taffa', name: 'Täffä', url: 'https://lunch.tf.fi/' },
@@ -12,7 +13,9 @@ const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VIT
 export const foodConfigured = Boolean(projectUrl && key)
 
 export async function fetchLunchMenus(date: string, signal: AbortSignal): Promise<DailyMenus> {
-  const response = await fetch(new URL('/functions/v1/lunch-menus', projectUrl), {
+  const url = new URL('/functions/v1/lunch-menus', projectUrl)
+  url.searchParams.set('date', date)
+  const response = await fetch(url, {
     headers: { apikey: key },
     signal,
     credentials: 'omit',

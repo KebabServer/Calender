@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react'
 import { ArrowUpRight, RefreshCw } from 'lucide-react'
-import { fetchLunchMenus, foodConfigured, restaurants, type DailyMenus } from '../lib/food'
+import { fetchLunchMenus, foodConfigured, menuWeekDates, restaurants, type DailyMenus } from '../lib/food'
 import { formatWeatherTime, helsinkiDateKey } from '../lib/weather'
 import { WebLink } from './TextLinks'
 
 export function FoodView() {
-  const [date, setDate] = useState(helsinkiDateKey)
+  const [today, setToday] = useState(helsinkiDateKey)
+  const [selectedDate, setSelectedDate] = useState('')
+  const dates = menuWeekDates(today)
+  const date = dates.includes(selectedDate) ? selectedDate : today
   const [result, setResult] = useState<DailyMenus>()
   const [loading, setLoading] = useState(foodConfigured)
   const [error, setError] = useState(false)
@@ -13,7 +16,7 @@ export function FoodView() {
   const current = result?.date === date ? result : undefined
 
   useEffect(() => {
-    const updateDate = () => setDate(helsinkiDateKey())
+    const updateDate = () => setToday(helsinkiDateKey())
     const timer = window.setInterval(updateDate, 60_000)
     window.addEventListener('focus', updateDate)
     document.addEventListener('visibilitychange', updateDate)
@@ -53,9 +56,19 @@ export function FoodView() {
         <RefreshCw size={18} className={loading ? 'spin' : undefined}/>
       </button>}
     </div>
+    <div className="food-dates" role="group" aria-label="Lunch menu date">
+      {dates.map(day => {
+        const timestamp = `${day}T12:00:00Z`
+        const label = formatWeatherTime(timestamp, { weekday: 'long', day: 'numeric', month: 'long' })
+        return <button key={day} type="button" aria-pressed={day === date} aria-label={day === today ? `Today, ${label}` : label} onClick={() => setSelectedDate(day)}>
+          <span>{day === today ? 'Today' : formatWeatherTime(timestamp, { weekday: 'short' })}</span>
+          <time dateTime={day}>{Number(day.slice(-2))}</time>
+        </button>
+      })}
+    </div>
     {!foodConfigured && <p className="food-notice">Open a restaurant’s site for its menu.</p>}
     {loading && !current && <p className="food-notice" role="status">Loading lunch menus…</p>}
-    {error && <p className="food-notice" role="status">{current ? 'Could not refresh today’s menus. Showing the last loaded menus.' : 'Could not load today’s menus.'}</p>}
+    {error && <p className="food-notice" role="status">{current ? 'Could not refresh the menus. Showing the last loaded menus.' : 'Could not load menus for this day.'}</p>}
     <div className="food-grid">
       {restaurants.map(({ id, name, url }) => {
         const dishes = current?.menus[id]
@@ -66,7 +79,7 @@ export function FoodView() {
               <span>{dish.name}</span>
               {dish.category && <small>{dish.category}</small>}
             </li>)}
-          </ul> : <p>No menu published for today.</p>)}
+          </ul> : <p>No menu published for this day.</p>)}
           {current && dishes == null && <p>Menu unavailable.</p>}
         </section>
       })}

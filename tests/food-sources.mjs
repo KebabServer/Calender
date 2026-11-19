@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert'
 import { test } from 'node:test'
-import { loadDailyMenus, menuDate, readABloc, readTaffa, readUniCafe } from '../supabase/functions/lunch-menus/menus.ts'
+import { loadDailyMenus, menuDate, menuWeekDates, readABloc, readTaffa, readUniCafe } from '../supabase/functions/lunch-menus/menus.ts'
 
 const date = '2026-11-19'
 const taffa = [
@@ -35,6 +35,12 @@ test('selects the exact Helsinki date and restaurant from official menu payloads
   assert.deepEqual(readUniCafe(unicafe, 'kaivopiha', '2026-11-22'), [])
   assert.deepEqual(readTaffa(taffa, '2026-11-22'), [])
   assert.throws(() => readABloc(abloc, '2026-11-20'), /menu date/)
+})
+
+test('lists today through Sunday across a year boundary and when today is Sunday', () => {
+  assert.deepEqual(menuWeekDates('2026-12-30'), ['2026-12-30', '2026-12-31', '2027-01-01', '2027-01-02', '2027-01-03'])
+  assert.deepEqual(menuWeekDates('2027-01-03'), ['2027-01-03'])
+  assert.equal(menuWeekDates('2027-01-04').length, 7)
 })
 
 test('uses fixed providers and keeps other restaurants available if one fails', async () => {
