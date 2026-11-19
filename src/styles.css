@@ -757,7 +757,7 @@ h1, h2, h3 { font-family: 'Manrope', 'DM Sans', sans-serif; letter-spacing: -.05
 .food-heading h1 { margin: 0; font-size: 26px; }
 .food-heading time { margin-left: auto; color: var(--muted); font-size: 12px; }
 .food-dates { display: flex; gap: 4px; margin-bottom: 10px; }
-.food-dates button { flex: 0 1 36px; min-width: 0; min-height: 44px; display: grid; place-content: center; gap: 2px; padding: 3px 1px; border: 1px solid var(--border); border-radius: 8px; font-size: 12px; line-height: 1.2; }
+.food-dates button { flex: 0 1 36px; min-width: 0; min-height: 36px; display: grid; place-content: center; gap: 1px; padding: 2px 1px; border: 1px solid var(--border); border-radius: 8px; font-size: 12px; line-height: 1.2; }
 .food-dates button:hover { background: var(--hover); }
 .food-dates button[aria-pressed="true"] { background: var(--accent-trans); border-color: var(--accent-border); }
 .food-dates time { color: var(--muted); font-size: 11px; }
