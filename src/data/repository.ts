@@ -1,7 +1,7 @@
 import { format, addDays, subDays, addHours } from 'date-fns'
 import type { CalendarEvent, EventInput, Note, Task, TaskInput, TaskUpdates, WatchItem, WatchInput, WatchUpdates } from '../types'
 import { weeklyCopies } from '../lib/events'
-import { nextTaskRefresh, refreshDemoTask, taskRefreshDue, TASK_TIMEZONE } from '../lib/task-refresh'
+import { nextIntervalTaskRefresh, nextTaskRefresh, refreshDemoTask, taskRefreshDue, TASK_TIMEZONE } from '../lib/task-refresh'
 import { supabase } from '../lib/supabase'
 
 type RecordedEpisode = { season: number; episode: number }
@@ -55,7 +55,7 @@ function readDemo() {
     if (raw) {
       const value = JSON.parse(raw) as ReturnType<typeof demoSeed>
       return { ...value, watchlist: (value.watchlist ?? []).map(item => ({ ...item, description: item.description ?? '', started: item.started ?? false, currently_watching: item.currently_watching ?? false, season: item.season ?? null, episode: item.episode ?? null })), tasks: (value.tasks ?? []).map(task => ({ ...task, description: task.description ?? '', due_date: task.due_date ?? null,
-        refresh_weekday: task.refresh_weekday ?? null, refresh_time: task.refresh_time ?? null,
+        refresh_weekday: task.refresh_weekday ?? null, refresh_interval_days: task.refresh_interval_days ?? null, refresh_time: task.refresh_time ?? null,
         refresh_timezone: task.refresh_timezone ?? TASK_TIMEZONE, next_refresh_at: task.next_refresh_at ?? null })) }
     }
   } catch { /* If storage is unavailable, seed fresh data */ }
@@ -65,6 +65,12 @@ function readDemo() {
 }
 function writeDemo(value: ReturnType<typeof demoSeed>) {
   localStorage.setItem(DEMO_KEY, JSON.stringify(value))
+}
+
+function initialTaskRefresh(task: TaskInput, now: number): string | null {
+  if (task.refresh_time == null) return null
+  if (task.refresh_interval_days != null) return nextIntervalTaskRefresh(task.refresh_interval_days, task.refresh_time, now)
+  return task.refresh_weekday != null ? nextTaskRefresh(task.refresh_weekday, task.refresh_time, now) : null
 }
 
 export const demoRepository: Repository = {
@@ -77,18 +83,21 @@ export const demoRepository: Repository = {
     const state = readDemo()
     const now = new Date().toISOString()
     const task: Task = { ...input, id: crypto.randomUUID(), completed: false, created_at: now, updated_at: now,
-      next_refresh_at: input.refresh_weekday !== null && input.refresh_time !== null ? nextTaskRefresh(input.refresh_weekday, input.refresh_time) : null }
+      next_refresh_at: initialTaskRefresh(input, Date.parse(now)) }
     state.tasks.unshift(task); writeDemo(state); return task
   },
   async saveTask(id, updates) {
     const state = readDemo()
     const current = state.tasks.find(t => t.id === id)
     if (!current) throw new Error('Task not found')
-    const saved = { ...refreshDemoTask(current), ...updates, updated_at: new Date().toISOString() }
-    if (saved.refresh_weekday === null || saved.refresh_time === null) saved.next_refresh_at = null
-    else if (saved.refresh_weekday !== current.refresh_weekday || saved.refresh_time !== current.refresh_time || saved.refresh_timezone !== current.refresh_timezone) {
-      saved.next_refresh_at = nextTaskRefresh(saved.refresh_weekday, saved.refresh_time)
-    }
+    const now = Date.now()
+    const updated = { ...current, ...updates }
+    const scheduleChanged = updated.refresh_interval_days !== current.refresh_interval_days
+      || updated.refresh_weekday !== current.refresh_weekday
+      || updated.refresh_time !== current.refresh_time
+      || updated.refresh_timezone !== current.refresh_timezone
+    const saved = { ...(scheduleChanged ? current : refreshDemoTask(current, now)), ...updates, updated_at: new Date(now).toISOString() }
+    if (scheduleChanged) saved.next_refresh_at = initialTaskRefresh(saved, now)
     state.tasks = state.tasks.map(t => t.id === id ? saved : t)
     writeDemo(state); return saved
   },
@@ -189,7 +198,7 @@ function assertNoError(error: { message: string } | null) {
 export function createCloudRepository(userId: string): Repository {
   if (!supabase) throw new Error('Cloud is not configured')
   const client = supabase
-  const taskColumns = 'id,title,description,due_date,refresh_weekday,refresh_time,refresh_timezone,next_refresh_at,completed,created_at,updated_at'
+  const taskColumns = 'id,title,description,due_date,refresh_weekday,refresh_interval_days,refresh_time,refresh_timezone,next_refresh_at,completed,created_at,updated_at'
   const watchColumns = 'id,title,kind,description,started,currently_watching,season,episode,watched_on,created_at'
   return {
     async getTasks() {
@@ -215,7 +224,7 @@ export function createCloudRepository(userId: string): Repository {
     async restoreTask(task) {
       // Ignore an existing ID: another device may have already restored/edited it.
       const { data, error } = await client.from('tasks').upsert({ id: task.id, user_id: userId, title: task.title, description: task.description, due_date: task.due_date,
-        refresh_weekday: task.refresh_weekday, refresh_time: task.refresh_time, refresh_timezone: task.refresh_timezone, next_refresh_at: task.next_refresh_at,
+        refresh_weekday: task.refresh_weekday, refresh_interval_days: task.refresh_interval_days, refresh_time: task.refresh_time, refresh_timezone: task.refresh_timezone, next_refresh_at: task.next_refresh_at,
         completed: task.completed, created_at: task.created_at, updated_at: new Date().toISOString() }, { onConflict: 'id', ignoreDuplicates: true }).select(taskColumns)
       assertNoError(error)
       if (data?.[0]) return data[0] as Task

@@ -12,7 +12,8 @@ const gate = () => { let release; const promise = new Promise(resolve => { relea
 const settleRender = page => page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))
 
 async function setup() {
-  const page = await browser.newPage({ viewport: { width: 320, height: 568 } })
+  const page = await browser.newPage({ viewport: { width: 320, height: 568 }, timezoneId: 'UTC' })
+  await page.clock.setFixedTime(new Date(stamp))
   page.setDefaultTimeout(10000)
   await page.addInitScript(s => localStorage.setItem('sb-tktgencmwtanxjfkiadc-auth-token', JSON.stringify(s)), session)
   await page.route('https://fonts.googleapis.com/**', r => r.abort())

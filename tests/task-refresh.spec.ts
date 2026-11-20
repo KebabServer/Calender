@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { nextTaskRefresh, refreshDemoTask, TASK_TIMEZONE } from '../src/lib/task-refresh'
+import { nextIntervalTaskRefresh, nextTaskRefresh, refreshDemoTask, TASK_TIMEZONE } from '../src/lib/task-refresh'
 import type { Task } from '../src/types'
 
 async function freeze(page: Page, instant: string) {
@@ -9,34 +9,35 @@ async function freeze(page: Page, instant: string) {
 }
 
 for (const width of [320,375,1440]) {
-  test(`weekly task refresh is compact and preserves task details at ${width}px`, async ({ page }) => {
+  test(`interval task refresh is compact and preserves task details at ${width}px`, async ({ page }) => {
     await page.setViewportSize({width,height:width===320?568:760})
-    await freeze(page,'2026-11-23T15:40:00Z')
+    await freeze(page,'2026-11-20T15:40:00Z')
     await page.goto('./',{waitUntil:'domcontentloaded'})
     const nav = page.getByRole('navigation')
     await nav.getByRole('button',{name:'To-do',exact:true}).click()
-    await expect(page.getByLabel('Refresh day')).toHaveCount(0)
-    await page.getByLabel('Refresh weekly',{exact:true}).check()
-    await expect(page.getByLabel('Refresh day')).toHaveValue('1')
+    await expect(page.getByLabel('Every (days)')).toHaveCount(0)
+    await page.getByLabel('Refresh',{exact:true}).check()
+    await expect(page.getByLabel('Every (days)')).toHaveValue('7')
     await expect(page.getByLabel('Time (Helsinki)',{exact:true})).toHaveValue('17:45')
     await nav.getByRole('button',{name:'Calendar',exact:true}).click()
     await nav.getByRole('button',{name:'To-do',exact:true}).click()
-    await expect(page.getByLabel('Refresh weekly',{exact:true})).toBeChecked()
+    await expect(page.getByLabel('Refresh',{exact:true})).toBeChecked()
+    await page.getByLabel('Every (days)').fill('3')
     await page.getByLabel('Task title').fill('Take out recycling')
     await page.getByLabel('Description',{exact:true}).fill('Paper and cardboard')
     await page.getByLabel('Due date',{exact:true}).fill('2026-11-24')
-    const day = (await page.getByLabel('Refresh day').boundingBox())!
+    const day = (await page.getByLabel('Every (days)').boundingBox())!
     const time = (await page.getByLabel('Time (Helsinki)',{exact:true}).boundingBox())!
     expect(Math.abs(day.y-time.y)).toBeLessThan(2)
     expect(day.x+day.width).toBeLessThanOrEqual(time.x)
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy()
     await page.screenshot({path:`test-results/weekly-task-editor-${width}.png`})
     await page.getByRole('button',{name:'Add task',exact:true}).click()
-    await expect(page.locator('.task-refresh')).toContainText('Monday 17:45 · Helsinki')
+    await expect(page.locator('.task-refresh')).toContainText('Every 3 days · 17:45 Helsinki')
     const original = await page.evaluate(()=>JSON.parse(localStorage.getItem('daymark_demo_v1')!).tasks[0])
     await page.getByRole('checkbox',{name:'Complete Take out recycling',exact:true}).click()
     await expect(page.locator('.task-completed')).toHaveCount(1)
-    await page.clock.fastForward(6*60000)
+    await page.clock.fastForward(3*86400000+6*60000)
     await expect(page.getByRole('checkbox',{name:'Complete Take out recycling',exact:true})).not.toBeChecked()
     await expect(page.locator('.task-row')).toHaveCount(1)
     await expect(page.locator('.task-description')).toHaveText('Paper and cardboard')
@@ -44,20 +45,21 @@ for (const width of [320,375,1440]) {
     const refreshed = await page.evaluate(()=>JSON.parse(localStorage.getItem('daymark_demo_v1')!).tasks[0])
     expect(refreshed.id).toBe(original.id)
     expect(refreshed.created_at).toBe(original.created_at)
-    expect(refreshed.next_refresh_at).toBe('2026-11-30T15:45:00.000Z')
+    expect(refreshed.next_refresh_at).toBe('2026-11-26T15:45:00.000Z')
     await page.getByRole('checkbox',{name:'Complete Take out recycling',exact:true}).click()
     await page.clock.fastForward(60000)
     await expect(page.getByRole('checkbox',{name:'Reopen Take out recycling',exact:true})).toBeChecked()
     await page.reload({waitUntil:'domcontentloaded'})
     await nav.getByRole('button',{name:'To-do',exact:true}).click()
     await page.getByRole('button',{name:'Edit Take out recycling',exact:true}).click()
-    await expect(page.getByLabel('Refresh weekly',{exact:true})).toBeChecked()
-    await page.getByLabel('Refresh day').selectOption('3')
+    await expect(page.getByLabel('Refresh',{exact:true})).toBeChecked()
+    await expect(page.getByLabel('Every (days)')).toHaveValue('3')
+    await page.getByLabel('Every (days)').fill('5')
     await page.getByLabel('Time (Helsinki)',{exact:true}).fill('09:15')
     await page.getByRole('button',{name:'Save task',exact:true}).click()
-    await expect(page.locator('.task-refresh')).toContainText('Wednesday 09:15')
+    await expect(page.locator('.task-refresh')).toContainText('Every 5 days · 09:15 Helsinki')
     await page.getByRole('button',{name:'Edit Take out recycling',exact:true}).click()
-    await page.getByLabel('Refresh weekly',{exact:true}).uncheck()
+    await page.getByLabel('Refresh',{exact:true}).uncheck()
     await page.getByRole('button',{name:'Save task',exact:true}).click()
     await expect(page.locator('.task-refresh')).toHaveCount(0)
     await page.clock.fastForward(8*86400000)
@@ -71,7 +73,7 @@ test('weekly deadlines keep Helsinki wall-clock time across DST and skip missed 
   expect(nextTaskRefresh(1,'17:45',Date.parse('2027-03-27T12:00:00Z'))).toBe('2027-03-29T14:45:00.000Z')
   expect(nextTaskRefresh(7,'03:30',Date.parse('2027-03-27T12:00:00Z'))).toBe('2027-03-28T01:30:00.000Z')
   expect(nextTaskRefresh(7,'03:30',Date.parse('2026-10-24T12:00:00Z'))).toBe('2026-10-25T01:30:00.000Z')
-  const task: Task = {id:'missed',title:'Weekly',description:'Keep me',due_date:'2026-11-01',completed:true,created_at:'2026-10-01T12:00:00Z',updated_at:'2026-10-01T12:00:00Z',refresh_weekday:1,refresh_time:'17:45',refresh_timezone:TASK_TIMEZONE,next_refresh_at:'2026-11-02T15:45:00Z'}
+  const task: Task = {id:'missed',title:'Weekly',description:'Keep me',due_date:'2026-11-01',completed:true,created_at:'2026-10-01T12:00:00Z',updated_at:'2026-10-01T12:00:00Z',refresh_weekday:1,refresh_interval_days:null,refresh_time:'17:45',refresh_timezone:TASK_TIMEZONE,next_refresh_at:'2026-11-02T15:45:00Z'}
   const refreshed = refreshDemoTask(task,Date.parse('2026-11-23T15:46:00Z'))
   expect(refreshed).toMatchObject({id:task.id,description:task.description,due_date:task.due_date,created_at:task.created_at,completed:false,next_refresh_at:'2026-11-30T15:45:00.000Z'})
   expect(refreshDemoTask(refreshed,Date.parse('2026-11-23T15:47:00Z'))).toBe(refreshed)
@@ -79,19 +81,28 @@ test('weekly deadlines keep Helsinki wall-clock time across DST and skip missed 
   expect(()=>nextTaskRefresh(1,'24:00')).toThrow()
 })
 
-test('Undo across a weekly boundary restores the task open in its new cycle', async ({ page }) => {
-  await freeze(page,'2026-11-23T15:44:50Z')
+test('day intervals retain the Helsinki time and phase across DST and missed refreshes', () => {
+  expect(nextIntervalTaskRefresh(1,'03:30',Date.parse('2027-03-27T12:00:00Z'))).toBe('2027-03-28T01:30:00.000Z')
+  expect(nextIntervalTaskRefresh(1,'03:30',Date.parse('2027-03-28T02:00:00Z'),'2027-03-28T01:30:00Z')).toBe('2027-03-29T00:30:00.000Z')
+  expect(nextIntervalTaskRefresh(1,'03:30',Date.parse('2026-10-24T12:00:00Z'))).toBe('2026-10-25T01:30:00.000Z')
+  expect(nextIntervalTaskRefresh(4,'17:45',Date.parse('2026-11-23T16:00:00Z'),'2026-11-02T15:45:00Z')).toBe('2026-11-26T15:45:00.000Z')
+  for (const days of [0,-1,1.5,365001]) expect(()=>nextIntervalTaskRefresh(days,'17:45')).toThrow()
+})
+
+test('Undo across an interval boundary restores the task open in its new cycle', async ({ page }) => {
+  await freeze(page,'2026-11-20T15:44:50Z')
   await page.goto('./',{waitUntil:'domcontentloaded'})
   await page.getByRole('navigation').getByRole('button',{name:'To-do',exact:true}).click()
-  await page.getByLabel('Task title').fill('Restore weekly task')
-  await page.getByLabel('Refresh weekly',{exact:true}).check()
+  await page.getByLabel('Task title').fill('Restore repeating task')
+  await page.getByLabel('Refresh',{exact:true}).check()
+  await page.getByLabel('Every (days)').fill('3')
   await page.getByRole('button',{name:'Add task',exact:true}).click()
-  await page.getByRole('checkbox',{name:'Complete Restore weekly task',exact:true}).click()
-  await page.clock.fastForward(9000)
-  await page.getByRole('button',{name:'Delete Restore weekly task',exact:true}).click()
+  await page.getByRole('checkbox',{name:'Complete Restore repeating task',exact:true}).click()
+  await page.clock.fastForward(3*86400000+9000)
+  await page.getByRole('button',{name:'Delete Restore repeating task',exact:true}).click()
   await expect(page.getByRole('button',{name:'Undo',exact:true})).toBeVisible()
   await page.clock.fastForward(2000)
   await page.getByRole('button',{name:'Undo',exact:true}).click()
-  await expect(page.getByRole('checkbox',{name:'Complete Restore weekly task',exact:true})).not.toBeChecked()
-  await expect(page.locator('.task-refresh')).toContainText('Monday 17:45')
+  await expect(page.getByRole('checkbox',{name:'Complete Restore repeating task',exact:true})).not.toBeChecked()
+  await expect(page.locator('.task-refresh')).toContainText('Every 3 days · 17:45 Helsinki')
 })
